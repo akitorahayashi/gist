@@ -42,7 +42,7 @@ exclude = '''
 '''
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "dev_config.settings"
+DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = "test_*.py"
 testpaths = ["tests"]
 
