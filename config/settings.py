@@ -20,7 +20,6 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # .envファイルが存在する場合に、そこから設定を読み込む
 env_path = BASE_DIR / ".env"
 if env_path.is_file():
@@ -76,7 +75,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "gist",
+    "apps.gist",
 ]
 
 MIDDLEWARE = [

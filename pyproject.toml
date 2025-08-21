@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{ include = "gist", from = "src" }]
+packages = [{ include = "gist", from = "apps" }]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
