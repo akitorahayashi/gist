@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file
 env_path = BASE_DIR / ".env"
 # REQUIRE_DOTENV が "false" の場合のみ .env の存在チェックをスキップ
-_flag = os.getenv("REQUIRE_DOTENV", "1").strip().lower()
+_flag = os.getenv("REQUIRE_DOTENV", "true").strip().lower()
 _require_dotenv = _flag != "false"
 if _require_dotenv and not env_path.exists():
     raise ImproperlyConfigured(f".env file not found at {env_path}")
@@ -55,7 +55,7 @@ if not OLLAMA_MODEL:
     )
 
 # Summary Configuration
-_summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "8000")
+_summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "600")
 try:
     SUMMARY_MAX_CHARS = int(_summary_max_chars_raw)
     if SUMMARY_MAX_CHARS < 0:

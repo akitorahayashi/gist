@@ -1,5 +1,6 @@
 from django.conf import settings
 from langchain_ollama import ChatOllama
+from config import settings
 
 
 class SummarizationService:
@@ -8,7 +9,13 @@ class SummarizationService:
             model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL
         )
 
-    def summarize(self, text: str, max_chars: int = 8000) -> str:
+    def summarize(self, text: str, max_chars: int | None = None) -> str:
+        if not text:
+            return ""
+        if max_chars is None:
+            if not hasattr(settings, "SUMMARY_MAX_CHARS"):
+                raise AttributeError("settings.SUMMARY_MAX_CHARS is not defined.")
+            max_chars = settings.SUMMARY_MAX_CHARS
         truncated_text = text[:max_chars]
         prompt = f"""以下のテキストを日本語で要約してください。
 
