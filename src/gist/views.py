@@ -65,7 +65,8 @@ def scrape_page(request):
                     context['scraped_content'] = text
 
                     # LLM 入力サイズ制御
-                    truncated_text = text[:settings.SUMMARY_MAX_CHARS]
+                    limit = max(0, getattr(settings, "SUMMARY_MAX_CHARS", 8000))
+                    truncated_text = text[:limit]
 
                     # プロンプトを定義
                     prompt = f"""以下のテキストを日本語で要約してください。
@@ -83,7 +84,7 @@ def scrape_page(request):
                 else:
                     context['scraped_content'] = ''
 
-            except requests.RequestException as e:
+            except requests.RequestException:
                 logger.exception("Failed to fetch URL: %s", url)
                 context['error'] = "ページの取得に失敗しました。URLが正しいか確認してください。"
             except ValueError as e:

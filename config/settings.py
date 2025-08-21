@@ -22,7 +22,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
 env_path = BASE_DIR / ".env"
-if not os.path.exists(env_path):
+# REQUIRE_DOTENV が "0"/"false"/"no" の場合のみ .env の存在チェックをスキップ
+_flag = os.getenv("REQUIRE_DOTENV", "1").strip().lower()
+_require_dotenv = _flag not in ("0", "false", "no")
+if _require_dotenv and not env_path.exists():
     raise ImproperlyConfigured(f".env file not found at {env_path}")
 load_dotenv(env_path)
 
@@ -36,6 +39,8 @@ if not OLLAMA_BASE_URL:
 _parsed = urlparse(OLLAMA_BASE_URL)
 if _parsed.scheme not in ("http", "https"):
     raise ImproperlyConfigured("OLLAMA_BASE_URL must start with http:// or https://")
+if not _parsed.netloc:
+    raise ImproperlyConfigured("OLLAMA_BASE_URL must include a hostname (e.g., http://localhost:11434).")
 OLLAMA_BASE_URL = OLLAMA_BASE_URL.rstrip("/")
 
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "").strip()
@@ -43,7 +48,13 @@ if not OLLAMA_MODEL:
     raise ImproperlyConfigured("OLLAMA_MODEL is not set in the environment or .env file.")
 
 # Summary Configuration
-SUMMARY_MAX_CHARS = int(os.getenv("SUMMARY_MAX_CHARS", "8000"))
+_summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "8000")
+try:
+    SUMMARY_MAX_CHARS = int(_summary_max_chars_raw)
+    if SUMMARY_MAX_CHARS < 0:
+        raise ValueError
+except ValueError:
+    raise ImproperlyConfigured("SUMMARY_MAX_CHARS must be a non-negative integer.")
 
 
 # Quick-start development settings - unsuitable for production
