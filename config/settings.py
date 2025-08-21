@@ -10,11 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-from pathlib import Path
 import os
-from dotenv import load_dotenv
-from django.core.exceptions import ImproperlyConfigured
+from pathlib import Path
 from urllib.parse import urlparse
+
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -33,19 +34,25 @@ load_dotenv(env_path)
 # Ollama Configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip()
 if not OLLAMA_BASE_URL:
-    raise ImproperlyConfigured("OLLAMA_BASE_URL is not set in the environment or .env file.")
+    raise ImproperlyConfigured(
+        "OLLAMA_BASE_URL is not set in the environment or .env file."
+    )
 
 # validate scheme and normalize
 _parsed = urlparse(OLLAMA_BASE_URL)
 if _parsed.scheme not in ("http", "https"):
     raise ImproperlyConfigured("OLLAMA_BASE_URL must start with http:// or https://")
 if not _parsed.netloc:
-    raise ImproperlyConfigured("OLLAMA_BASE_URL must include a hostname (e.g., http://localhost:11434).")
+    raise ImproperlyConfigured(
+        "OLLAMA_BASE_URL must include a hostname (e.g., http://localhost:11434)."
+    )
 OLLAMA_BASE_URL = OLLAMA_BASE_URL.rstrip("/")
 
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "").strip()
 if not OLLAMA_MODEL:
-    raise ImproperlyConfigured("OLLAMA_MODEL is not set in the environment or .env file.")
+    raise ImproperlyConfigured(
+        "OLLAMA_MODEL is not set in the environment or .env file."
+    )
 
 # Summary Configuration
 _summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "8000")
@@ -78,7 +85,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "gist"
+    "gist",
 ]
 
 MIDDLEWARE = [

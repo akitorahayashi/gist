@@ -1,9 +1,12 @@
-from langchain_ollama import ChatOllama
 from django.conf import settings
+from langchain_ollama import ChatOllama
+
 
 class SummarizationService:
     def __init__(self):
-        self.llm = ChatOllama(model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL)
+        self.llm = ChatOllama(
+            model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL
+        )
 
     def summarize(self, text: str, max_chars: int = 8000) -> str:
         truncated_text = text[:max_chars]
@@ -20,5 +23,5 @@ class SummarizationService:
         if isinstance(result.content, str):
             return result.content
         elif isinstance(result.content, list):
-            return '\n'.join(str(item) for item in result.content)
+            return "\n".join(str(item) for item in result.content)
         return str(result.content)

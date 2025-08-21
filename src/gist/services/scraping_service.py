@@ -1,8 +1,10 @@
+import ipaddress
+import socket
+from urllib.parse import urlparse
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
-import socket
-import ipaddress
+
 
 class ScrapingService:
     @staticmethod
@@ -25,22 +27,30 @@ class ScrapingService:
             except socket.gaierror:
                 continue
         for addr in addrs:
-            ip = ipaddress.ip_address(addr.split('%')[0])
-            if (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            ip = ipaddress.ip_address(addr.split("%")[0])
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_reserved
+                or ip.is_multicast
+                or ip.is_unspecified
+            ):
                 return True
         return False
 
     @staticmethod
     def scrape(url: str, timeout=(300, 300)) -> str:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        response = requests.get(url, headers=headers, timeout=timeout, allow_redirects=False)
+        response = requests.get(
+            url, headers=headers, timeout=timeout, allow_redirects=False
+        )
         response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
         for element in soup(["script", "style", "header", "footer", "nav", "aside"]):
             element.decompose()
         if soup.body:
-            return soup.body.get_text(separator=' ', strip=True)
-        return ''
+            return soup.body.get_text(separator=" ", strip=True)
+        return ""
