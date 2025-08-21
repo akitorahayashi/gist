@@ -46,7 +46,7 @@ def scrape_page(request):
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
                 # リダイレクトは無効化し、タイムアウトは (接続, 読み取り) で指定
-                response = requests.get(url, headers=headers, timeout=(5, 15), allow_redirects=False)
+                response = requests.get(url, headers=headers, timeout=(300, 300), allow_redirects=False)
                 response.raise_for_status()  # ステータスコードが200番台でない場合に例外を発生させる
 
                 soup = BeautifulSoup(response.content, 'html.parser')
