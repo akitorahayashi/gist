@@ -41,13 +41,24 @@ class ScrapingService:
 
     @staticmethod
     def scrape(url: str, timeout=(10, 30)) -> str:
+        ScrapingService.validate_url(url)
+
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        response = requests.get(
-            url, headers=headers, timeout=timeout, allow_redirects=False
-        )
-        response.raise_for_status()
+        try:
+            response = requests.get(
+                url, headers=headers, timeout=timeout, allow_redirects=False
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            raise ValueError(f"コンテンツ取得に失敗しました: {e}") from e
+
+        # 明らかに非 HTML のレスポンスは早期リターン
+        ctype = (response.headers.get("Content-Type") or "").lower()
+        if not ("html" in ctype or ctype.startswith("text/")):
+            return ""
+
         soup = BeautifulSoup(response.content, "html.parser")
         for element in soup(["script", "style", "header", "footer", "nav", "aside"]):
             element.decompose()

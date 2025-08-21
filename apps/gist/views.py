@@ -13,7 +13,6 @@ def scrape_page(request):
         url = request.POST.get("url")
         if url:
             try:
-                ScrapingService.validate_url(url)
                 text = ScrapingService.scrape(url)
                 context["scraped_content"] = text
 

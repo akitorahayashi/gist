@@ -26,25 +26,23 @@ if env_path.is_file():
     load_dotenv(dotenv_path=env_path)
 
 # 環境変数からすべてのカスタム設定を読み込む
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip()
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "").strip()
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip() or None
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "").strip() or None
 _summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "600")
 
 
 # 読み込んだ設定値を検証
-if not OLLAMA_BASE_URL:
-    raise ImproperlyConfigured("OLLAMA_BASE_URL is not set in the environment.")
-_parsed_url = urlparse(OLLAMA_BASE_URL)
-if _parsed_url.scheme not in ("http", "https"):
-    raise ImproperlyConfigured("OLLAMA_BASE_URL must start with http:// or https://.")
-if not _parsed_url.netloc:
-    raise ImproperlyConfigured(
-        "OLLAMA_BASE_URL must include a hostname (e.g., http://localhost:11434)."
-    )
-OLLAMA_BASE_URL = OLLAMA_BASE_URL.rstrip("/")
-
-if not OLLAMA_MODEL:
-    raise ImproperlyConfigured("OLLAMA_MODEL is not set in the environment.")
+if OLLAMA_BASE_URL:
+    _parsed_url = urlparse(OLLAMA_BASE_URL)
+    if _parsed_url.scheme not in ("http", "https"):
+        raise ImproperlyConfigured(
+            "OLLAMA_BASE_URL must start with http:// or https://."
+        )
+    if not _parsed_url.netloc:
+        raise ImproperlyConfigured(
+            "OLLAMA_BASE_URL must include a hostname (e.g., http://localhost:11434)."
+        )
+    OLLAMA_BASE_URL = OLLAMA_BASE_URL.rstrip("/")
 
 try:
     SUMMARY_MAX_CHARS = int(_summary_max_chars_raw)

@@ -1,9 +1,16 @@
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from langchain_ollama import ChatOllama
+
+
+def _ensure_ollama_config():
+    if not settings.OLLAMA_BASE_URL or not settings.OLLAMA_MODEL:
+        raise ImproperlyConfigured("OLLAMA_BASE_URL / OLLAMA_MODEL is not configured.")
 
 
 class SummarizationService:
     def __init__(self):
+        _ensure_ollama_config()
         self.llm = ChatOllama(
             model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL
         )
