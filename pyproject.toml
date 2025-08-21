@@ -12,11 +12,11 @@ dependencies = [
     "requests (>=2.32.5,<3.0.0)",
     "beautifulsoup4 (>=4.13.4,<5.0.0)",
     "langchain-ollama (>=0.3.6,<0.4.0)",
-    "python-dotenv (>=1.1.1,<2.0.0)"
+    "python-dotenv (>=1.1.1,<2.0.0)",
 ]
 
 [tool.poetry]
-packages = [{ include = "gist", from = "src" }]
+packages = [{ include = "gist", from = "apps" }]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -27,6 +27,7 @@ black = "^25.1.0"
 ruff = "^0.12.9"
 ipython = "^9.4.0"
 pytest-django = "^4.11.1"
+pytest = "^8.4.1"
 
 [tool.black]
 target-version = ['py312']
@@ -41,7 +42,7 @@ exclude = '''
 '''
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "dev_config.settings"
+DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = "test_*.py"
 testpaths = ["tests"]
 
