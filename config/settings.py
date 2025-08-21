@@ -22,9 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
 env_path = BASE_DIR / ".env"
-# REQUIRE_DOTENV が "0"/"false"/"no" の場合のみ .env の存在チェックをスキップ
+# REQUIRE_DOTENV が "false" の場合のみ .env の存在チェックをスキップ
 _flag = os.getenv("REQUIRE_DOTENV", "1").strip().lower()
-_require_dotenv = _flag not in ("0", "false", "no")
+_require_dotenv = _flag != "false"
 if _require_dotenv and not env_path.exists():
     raise ImproperlyConfigured(f".env file not found at {env_path}")
 load_dotenv(env_path)
@@ -97,7 +97,6 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
-        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
