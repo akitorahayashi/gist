@@ -14,19 +14,36 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
+from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
 # Load environment variables from .env file
-load_dotenv(BASE_DIR / ".env")
+env_path = BASE_DIR / ".env"
+if not os.path.exists(env_path):
+    raise ImproperlyConfigured(f".env file not found at {env_path}")
+load_dotenv(env_path)
+
 
 # Ollama Configuration
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip()
 if not OLLAMA_BASE_URL:
     raise ImproperlyConfigured("OLLAMA_BASE_URL is not set in the environment or .env file.")
+
+# validate scheme and normalize
+_parsed = urlparse(OLLAMA_BASE_URL)
+if _parsed.scheme not in ("http", "https"):
+    raise ImproperlyConfigured("OLLAMA_BASE_URL must start with http:// or https://")
 OLLAMA_BASE_URL = OLLAMA_BASE_URL.rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
+
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "").strip()
+if not OLLAMA_MODEL:
+    raise ImproperlyConfigured("OLLAMA_MODEL is not set in the environment or .env file.")
+
+# Summary Configuration
+SUMMARY_MAX_CHARS = int(os.getenv("SUMMARY_MAX_CHARS", "8000"))
 
 
 # Quick-start development settings - unsuitable for production
