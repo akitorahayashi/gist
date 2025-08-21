@@ -1,0 +1,26 @@
+[project]
+name = "gist"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "langchain (>=0.3.27,<0.4.0)",
+    "langchain-community (>=0.3.27,<0.4.0)",
+    "langchain-core (>=0.3.74,<0.4.0)",
+    "django (>=5.2.5,<6.0.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+ruff = "^0.12.9"
+ipython = "^9.4.0"
+pytest-django = "^4.11.1"
+
