@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web Page Scraper</title>
+</head>
+<body>
+    <h1>Enter URL to Scrape</h1>
+    <form method="post">
+        {% csrf_token %}
+        <input type="text" name="url" size="50" placeholder="https://example.com">
+        <button type="submit">Scrape</button>
+    </form>
+
+    {% if scraped_content %}
+    <h2>Scraped Content:</h2>
+    <pre>{{ scraped_content }}</pre>
+    {% endif %}
+
+    {% if error %}
+    <h2>Error:</h2>
+    <p>{{ error }}</p>
+    {% endif %}
+</body>
+</html>
