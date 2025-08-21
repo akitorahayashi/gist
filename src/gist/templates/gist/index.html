@@ -11,8 +11,13 @@
         <button type="submit">Scrape</button>
     </form>
 
+    {% if summary %}
+    <h2>要約:</h2>
+    <pre>{{ summary }}</pre>
+    {% endif %}
+
     {% if scraped_content %}
-    <h2>Scraped Content:</h2>
+    <h2>スクレイピングされたコンテンツ:</h2>
     <pre>{{ scraped_content }}</pre>
     {% endif %}
 
