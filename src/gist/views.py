@@ -1,22 +1,18 @@
 from django.shortcuts import render
+from django.conf import settings
 import requests
 from bs4 import BeautifulSoup
 from langchain_ollama.chat_models import ChatOllama
-import os
-from dotenv import load_dotenv
+
+# LLMクライアントをモジュールレベルで初期化
+llm = ChatOllama(model="qwen3:8b", base_url=settings.OLLAMA_BASE_URL)
 
 def scrape_page(request):
-    load_dotenv()
     context = {}
     if request.method == 'POST':
         url = request.POST.get('url')
         if url:
             try:
-                # OllamaサーバーのURLを環境変数から取得
-                ollama_base_url = os.getenv("OLLAMA_BASE_URL")
-                if not ollama_base_url:
-                    raise ValueError("OLLAMA_BASE_URLが設定されていません。.envファイルを確認してください。")
-
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
@@ -35,8 +31,6 @@ def scrape_page(request):
                     text = soup.body.get_text(separator=' ', strip=True)
                     context['scraped_content'] = text
 
-                    # Ollamaモデルを初期化し、要約を生成
-                    llm = ChatOllama(model="qwen3:8b", base_url=ollama_base_url)
                     # プロンプトを定義
                     prompt = f"""以下のテキストを日本語で要約してください。
 
