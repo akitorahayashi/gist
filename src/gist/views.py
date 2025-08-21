@@ -8,6 +8,9 @@ from urllib.parse import urlparse
 import socket
 import ipaddress
 
+
+logger = logging.getLogger(__name__)
+
 # LLMクライアントをモジュールレベルで初期化
 llm = ChatOllama(model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL)
 
@@ -61,11 +64,15 @@ def scrape_page(request):
                     text = soup.body.get_text(separator=' ', strip=True)
                     context['scraped_content'] = text
 
+                    # LLM 入力サイズ制御
+                    limit = max(0, getattr(settings, "SUMMARY_MAX_CHARS", 8000))
+                    truncated_text = text[:limit]
+
                     # プロンプトを定義
                     prompt = f"""以下のテキストを日本語で要約してください。
 
 テキスト:
-{text}
+{truncated_text}
 
 要約は以下の形式で出力してください。
 タイトル: 記事の内容を一行で表すタイトルを1つ生成してください。
@@ -77,8 +84,14 @@ def scrape_page(request):
                 else:
                     context['scraped_content'] = ''
 
-            except Exception as e:
-                logging.getLogger(__name__).exception("スクレイピング/要約処理でエラー")
+            except requests.RequestException:
+                logger.exception("Failed to fetch URL: %s", url)
+                context['error'] = "ページの取得に失敗しました。URLが正しいか確認してください。"
+            except ValueError as e:
+                logger.warning("URL validation error for %s: %s", url, e)
+                context['error'] = str(e)
+            except Exception:
+                logger.exception("An unexpected error occurred during scraping/summarization for URL: %s", url)
                 context['error'] = "エラーが発生しました。しばらくしてからお試しください。"
         else:
             context['error'] = "URLを入力してください。"
