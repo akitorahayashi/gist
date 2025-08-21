@@ -2,10 +2,14 @@ from django.shortcuts import render
 from django.conf import settings
 import requests
 from bs4 import BeautifulSoup
-from langchain_ollama.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
+import logging
+from urllib.parse import urlparse
+import socket
+import ipaddress
 
 # LLMクライアントをモジュールレベルで初期化
-llm = ChatOllama(model="qwen3:8b", base_url=settings.OLLAMA_BASE_URL)
+llm = ChatOllama(model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL)
 
 def scrape_page(request):
     context = {}
@@ -13,10 +17,36 @@ def scrape_page(request):
         url = request.POST.get('url')
         if url:
             try:
+                # URL 検証（http/https のみ許可）
+                parsed = urlparse(url)
+                if parsed.scheme not in ("http", "https"):
+                    raise ValueError("URLは http/https のみ対応しています。")
+                if not parsed.hostname:
+                    raise ValueError("URLのホスト名が不正です。")
+
+                # DNS 解決してプライベート/ループバック等をブロック
+                def _is_private_host(host: str) -> bool:
+                    addrs = set()
+                    for family in (socket.AF_INET, socket.AF_INET6):
+                        try:
+                            for info in socket.getaddrinfo(host, None, family):
+                                addrs.add(info[4][0])
+                        except socket.gaierror:
+                            continue
+                    for addr in addrs:
+                        ip = ipaddress.ip_address(addr.split('%')[0])
+                        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                            or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+                            return True
+                    return False
+                if _is_private_host(parsed.hostname):
+                    raise ValueError("指定のホストは許可されていません。")
+
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                 }
-                response = requests.get(url, headers=headers, timeout=10)
+                # リダイレクトは無効化し、タイムアウトは (接続, 読み取り) で指定
+                response = requests.get(url, headers=headers, timeout=(5, 15), allow_redirects=False)
                 response.raise_for_status()  # ステータスコードが200番台でない場合に例外を発生させる
 
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -48,7 +78,8 @@ def scrape_page(request):
                     context['scraped_content'] = ''
 
             except Exception as e:
-                context['error'] = f"エラーが発生しました: {e}"
+                logging.getLogger(__name__).exception("スクレイピング/要約処理でエラー")
+                context['error'] = "エラーが発生しました。しばらくしてからお試しください。"
         else:
             context['error'] = "URLを入力してください。"
 

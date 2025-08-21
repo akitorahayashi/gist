@@ -25,6 +25,8 @@ load_dotenv(BASE_DIR / ".env")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 if not OLLAMA_BASE_URL:
     raise ImproperlyConfigured("OLLAMA_BASE_URL is not set in the environment or .env file.")
+OLLAMA_BASE_URL = OLLAMA_BASE_URL.rstrip("/")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
 
 # Quick-start development settings - unsuitable for production
