@@ -3,10 +3,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+
 from apps.gist.services.scraping_service import ScrapingService
 
 
-@pytest.mark.django_db
 class TestScrapingService:
     @pytest.mark.parametrize(
         "url",
@@ -35,20 +35,18 @@ class TestScrapingService:
         with pytest.raises(ValueError, match=expected_error_message):
             ScrapingService.validate_url(url)
 
-    @patch("socket.getaddrinfo")
+    @patch("apps.gist.services.scraping_service.socket.getaddrinfo")
     def test_validate_url_private_host(self, mock_getaddrinfo):
         # Given: localhost はプライベートホスト
         url = "http://localhost"
-        mock_getaddrinfo.return_value = [
-            (socket.AF_INET, 0, 0, "", ("127.0.0.1", 80))
-        ]
+        mock_getaddrinfo.return_value = [(socket.AF_INET, 0, 0, "", ("127.0.0.1", 80))]
 
         # When: localhost の URL をバリデーション
         # Then: ValueError が発生する
         with pytest.raises(ValueError, match="指定のホストは許可されていません。"):
             ScrapingService.validate_url(url)
 
-    @patch("socket.getaddrinfo")
+    @patch("apps.gist.services.scraping_service.socket.getaddrinfo")
     def test_validate_url_public_host(self, mock_getaddrinfo):
         # Given: example.com はパブリックホスト
         url = "http://example.com"
@@ -60,7 +58,7 @@ class TestScrapingService:
         # Then: 例外が発生しない
         ScrapingService.validate_url(url)
 
-    @patch("requests.get")
+    @patch("apps.gist.services.scraping_service.requests.get")
     def test_scrape_success(self, mock_get):
         # Given: 正常な HTML レスポンスを返す mock
         url = "http://example.com"
@@ -85,6 +83,7 @@ class TestScrapingService:
         mock_response.status_code = 200
         mock_response.content = html_content.encode("utf-8")
         mock_response.headers = {"Content-Type": "text/html"}
+        mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
 
         # When: スクレイピングを実行
@@ -93,8 +92,14 @@ class TestScrapingService:
         # Then: 不要なタグが除去されたテキストが返る
         assert result == "Title This is a paragraph."
         mock_get.assert_called_once()
+        # requests.get の引数を検証
+        _, kwargs = mock_get.call_args
+        assert kwargs["allow_redirects"] is False
+        assert kwargs["timeout"] == (10, 30)
+        assert "User-Agent" in kwargs["headers"]
+        mock_response.raise_for_status.assert_called_once()
 
-    @patch("requests.get")
+    @patch("apps.gist.services.scraping_service.requests.get")
     def test_scrape_request_exception(self, mock_get):
         # Given: requests.RequestException を発生させる mock
         url = "http://example.com"
@@ -102,10 +107,12 @@ class TestScrapingService:
 
         # When: スクレイピングを実行
         # Then: ValueError が発生する
-        with pytest.raises(ValueError, match="コンテンツ取得に失敗しました: Test error"):
+        with pytest.raises(
+            ValueError, match="コンテンツ取得に失敗しました: Test error"
+        ):
             ScrapingService.scrape(url)
 
-    @patch("requests.get")
+    @patch("apps.gist.services.scraping_service.requests.get")
     def test_scrape_non_html_content(self, mock_get):
         # Given: 非 HTML コンテンツ (e.g. PDF) を返す mock
         url = "http://example.com/file.pdf"
@@ -121,7 +128,26 @@ class TestScrapingService:
         # Then: 空文字列が返る
         assert result == ""
 
-    @patch("requests.get")
+    @patch("apps.gist.services.scraping_service.requests.get")
+    def test_scrape_text_plain_returns_empty(self, mock_get):
+        url = "http://example.com/raw.txt"
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.content = b"plain text"
+        mock_resp.headers = {"Content-Type": "text/plain"}
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        assert ScrapingService.scrape(url) == ""
+
+    @patch("apps.gist.services.scraping_service.socket.getaddrinfo")
+    def test_validate_url_ipv6_loopback_rejected(self, mock_getaddrinfo):
+        url = "http://localhost"
+        mock_getaddrinfo.return_value = [(socket.AF_INET6, 0, 0, "", ("::1", 0, 0, 0))]
+        with pytest.raises(ValueError, match="指定のホストは許可されていません。"):
+            ScrapingService.validate_url(url)
+
+    @patch("apps.gist.services.scraping_service.requests.get")
     def test_scrape_no_body(self, mock_get):
         # Given: body タグのない HTML を返す mock
         url = "http://example.com"
