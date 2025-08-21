@@ -25,5 +25,9 @@ jobs:
           poetry install --no-root
 
       - name: Run Django Tests
+        env:
+          OLLAMA_BASE_URL: http://127.0.0.1:11434
+          OLLAMA_MODEL: qwen3:8b
+          SUMMARY_MAX_CHARS: 600
         run: |
           poetry run pytest

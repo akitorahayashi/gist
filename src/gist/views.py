@@ -26,7 +26,9 @@ def scrape_page(request):
             except Exception:
                 # それ以外は詳細をログにのみ出し、ユーザーには定型文を返す
                 logger.exception("Error during scraping/summarization for URL: %s", url)
-                context["error"] = "処理中にエラーが発生しました。時間をおいて再度お試しください。"
+                context["error"] = (
+                    "処理中にエラーが発生しました。時間をおいて再度お試しください。"
+                )
         else:
             context["error"] = "URLを入力してください。"
 

@@ -1,6 +1,5 @@
 from django.conf import settings
 from langchain_ollama import ChatOllama
-from config import settings
 
 
 class SummarizationService:

@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 jobs:
-  format-and-list:
+  format-and-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
