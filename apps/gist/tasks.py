@@ -1,4 +1,5 @@
 import logging
+import re
 
 from celery import shared_task
 
@@ -26,20 +27,22 @@ def process_url_task(self, url: str):
         summarizer = SummarizationService()
         summary_text = summarizer.summarize(text)
 
-        # 3. タイトルと要約を分割
-        # "タイトル: " と "要点:" をもとに分割することを想定
-        title = "要約結果"  # デフォルトタイトル
-        summary_points = summary_text
-        if "タイトル:" in summary_text:
-            parts = summary_text.split("タイトル:", 1)
-            summary_points = parts[1].strip()
-            if "要点:" in parts[0]: # タイトル行に"要点:"が含まれていないことを確認
-                title = parts[0].replace("要点:","").strip()
-            else:
-                title_line = summary_text.split('\n')[0]
-                if title_line.startswith("タイトル:"):
-                    title = title_line.replace("タイトル:", "").strip()
-                summary_points = summary_text[len(title_line):].strip()
+        # 3. タイトルと要約を正規表現で抽出
+        title = "要約結果"
+        summary_points = summary_text.strip()
+        # 先にタイトル行を抽出（行頭の「タイトル:」を優先）
+        m_title = re.search(r'(?m)^\s*タイトル:\s*(.+)\s*$', summary_text)
+        if m_title:
+            title = m_title.group(1).strip()
+        # 「要点:」以降をサマリーとして抽出（複数行対応）
+        m_points = re.search(r'(?ms)^\s*要点:\s*(.*)$', summary_text)
+        if m_points:
+            summary_points = m_points.group(1).strip()
+        else:
+            # フォールバック: 先頭行がタイトル行なら、それ以外を要点として扱う
+            first_line = summary_text.splitlines()[0] if summary_text else ""
+            if first_line.startswith("タイトル:"):
+                summary_points = summary_text[len(first_line):].strip()
 
         # 成功時の結果を返す
         return {"title": title, "summary": summary_points}

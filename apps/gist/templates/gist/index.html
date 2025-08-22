@@ -115,22 +115,35 @@
       }
 
       function showLoading(message) {
-        resultArea.innerHTML = `<p>${message}</p>`;
+        resultArea.replaceChildren();
+        const p = document.createElement("p");
+        p.textContent = message;
+        resultArea.appendChild(p);
       }
 
       function showError(message) {
-        resultArea.innerHTML = `
-            <h2>エラー:</h2>
-            <p style="color: red;">${message}</p>
-        `;
+        resultArea.replaceChildren();
+        const h2 = document.createElement("h2");
+        h2.textContent = "エラー:";
+        const p = document.createElement("p");
+        p.style.color = "red";
+        p.textContent = message;
+        resultArea.appendChild(h2);
+        resultArea.appendChild(p);
       }
 
       function showSuccess(title, summary) {
-        resultArea.innerHTML = `
-            <h2>要約:</h2>
-            <h3>${title}</h3>
-            <pre style="white-space: pre-wrap;">${summary}</pre>
-        `;
+        resultArea.replaceChildren();
+        const h2 = document.createElement("h2");
+        h2.textContent = "要約:";
+        const h3 = document.createElement("h3");
+        h3.textContent = title;
+        const pre = document.createElement("pre");
+        pre.style.whiteSpace = "pre-wrap";
+        pre.textContent = summary;
+        resultArea.appendChild(h2);
+        resultArea.appendChild(h3);
+        resultArea.appendChild(pre);
       }
     </script>
   </body>

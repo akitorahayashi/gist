@@ -47,10 +47,10 @@ def get_status(request, task_id):
 
     if task_result.state == "PENDING":
         response = {"status": "processing", "message": "タスクは待機中です。"}
-    elif task_result.state == "PROGRESS":
+    elif task_result.state in ("PROGRESS", "STARTED"):
         response = {
             "status": "processing",
-            "message": task_result.info.get("message", "処理中..."),
+            "message": (task_result.info or {}).get("message", "処理中..."),
         }
     elif task_result.state == "SUCCESS":
         result = task_result.result

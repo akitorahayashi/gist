@@ -13,8 +13,7 @@ dependencies = [
     "beautifulsoup4 (>=4.13.4,<5.0.0)",
     "langchain-ollama (>=0.3.6,<0.4.0)",
     "python-dotenv (>=1.1.1,<2.0.0)",
-    "celery (>=5.5.3,<6.0.0)",
-    "redis (>=6.4.0,<7.0.0)",
+    "celery[redis] (>=5.5.3,<6.0.0)",
 ]
 
 [tool.poetry]
