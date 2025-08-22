@@ -38,6 +38,11 @@ def process_url_task(self, url: str):
         m_points = re.search(r'(?ms)^\s*要点:\s*(.*)$', summary_text)
         if m_points:
             summary_points = m_points.group(1).strip()
+            # 要点内に紛れた「タイトル:」行を除去
+            summary_points = "\n".join(
+                ln for ln in summary_points.splitlines()
+                if not re.match(r'^\s*タイトル:\s*', ln)
+            ).strip()
         else:
             # フォールバック: 先頭行がタイトル行なら、それ以外を要点として扱う
             first_line = summary_text.splitlines()[0] if summary_text else ""
@@ -47,16 +52,14 @@ def process_url_task(self, url: str):
         # 成功時の結果を返す
         return {"title": title, "summary": summary_points}
     except ValueError as e:
-        # 入力やスクレイピング中の既知のエラー
+        # 入力エラーはFAILUREとして終了し、フロントエンドがエラー内容を取得できるようにする
         logger.warning("Validation error in process_url_task for URL %s: %s", url, e)
         self.update_state(state="FAILURE", meta={"message": str(e)})
-        # Celeryのタスクとしては成功させるが、エラーメッセージを結果として返す
-        # こうすることで、フロントエンドでエラー内容をハンドリングしやすくなる
-        raise Exception(str(e))
+        raise Exception(str(e)) from e
     except Exception as e:
         # 予期せぬエラー
         logger.exception("Unexpected error in process_url_task for URL: %s", url)
         # エラーメッセージを定型文にする
         error_message = "処理中に予期せぬエラーが発生しました。"
         self.update_state(state="FAILURE", meta={"message": error_message})
-        raise Exception(error_message)
+        raise Exception(error_message) from e

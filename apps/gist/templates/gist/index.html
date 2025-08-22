@@ -8,7 +8,7 @@
     <form id="scrape-form">
       {% csrf_token %}
       <input
-        type="text"
+        type="url"
         name="url"
         id="url-input"
         size="50"
@@ -18,7 +18,7 @@
       <button type="submit" id="submit-button">Scrape</button>
     </form>
 
-    <div id="result-area" style="margin-top: 20px">
+    <div id="result-area" style="margin-top: 20px" aria-live="polite">
       <!-- 結果はここに表示されます -->
     </div>
 
@@ -27,6 +27,8 @@
       const urlInput = document.getElementById("url-input");
       const submitButton = document.getElementById("submit-button");
       const resultArea = document.getElementById("result-area");
+      // Djangoで逆引きしたURLテンプレート（__TASK_ID__ を後で置換）
+      const statusUrlTemplate = "{% url 'gist:get_status' task_id='__TASK_ID__' %}";
       let pollingInterval;
 
       scrapeForm.addEventListener("submit", async (event) => {
@@ -57,12 +59,16 @@
             // ポーリングを開始
             startPolling(data.task_id);
           } else {
-            const errorData = await startResponse.json();
-            showError(
-              `エラー (${startResponse.status}): ${
-                errorData.error || "タスクを開始できませんでした。"
-              }`
-            );
+            let msg = "タスクを開始できませんでした。";
+            try {
+              if ((startResponse.headers.get("content-type") || "").includes("application/json")) {
+                const errorData = await startResponse.json();
+                msg = errorData.error || msg;
+              } else {
+                msg = await startResponse.text();
+              }
+            } catch (_) { /* no-op: 既定文言を使用 */ }
+            showError(`エラー (${startResponse.status}): ${msg}`);
             submitButton.disabled = false;
           }
         } catch (error) {
@@ -75,9 +81,8 @@
         showLoading("処理中です... ⏳");
         pollingInterval = setInterval(async () => {
           try {
-            const statusResponse = await fetch(
-              `/api/status/${taskId}` // URLはハードコーディング
-            );
+            const statusUrl = statusUrlTemplate.replace("__TASK_ID__", encodeURIComponent(taskId));
+            const statusResponse = await fetch(statusUrl);
 
             if (!statusResponse.ok) {
               // 404などのエラー
@@ -106,12 +111,15 @@
       }
 
       function stopPolling() {
-        clearInterval(pollingInterval);
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = undefined;
+        }
         submitButton.disabled = false;
       }
 
       function clearResult() {
-        resultArea.innerHTML = "";
+        resultArea.replaceChildren();
       }
 
       function showLoading(message) {

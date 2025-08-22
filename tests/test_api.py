@@ -122,43 +122,53 @@ class GistApiTests(TestCase):
     @patch("apps.gist.views.AsyncResult")
     def test_get_status_not_found(self, mock_async_result):
         """
-        Test getting the status of a non-existent task.
+        Test getting the status of a non-existent task returns a pending status.
         """
         task_id = str(uuid.uuid4())
-        # state が存在しないタスクIDを模倣するために、stateをNoneに設定
         mock_result = mock_async_result.return_value
-        mock_result.state = None
+        # Celery's default behavior for an unknown task is to return a PENDING state.
+        mock_result.state = "PENDING"
+        mock_result.info = None
 
         url = reverse("gist:get_status", kwargs={"task_id": task_id})
         response = self.client.get(url)
 
-        # 存在しないタスクIDの場合、CeleryはPENDINGを返すことがあるため、
-        # ここではstateが返ってこないか、特定の状態でないことを確認する。
-        # 今回はシンプルに404を期待する。
-        # 注: 実際のAPI実装で、存在しないタスクIDに対して404を返すようにする必要がある。
-        # AsyncResultはタスクが存在しなくても例外を投げないため、
-        # stateをチェックしてハンドリングする。
-        # ここでは、ビューがNoneのstateを404にマッピングすると仮定する。
-        # テストをより堅牢にするため、ビューの実装に合わせて調整が必要。
-        #
-        # 更新: ビュー側で state がない (AsyncResultが情報を返さない) 場合を
-        # 404 Not Found として扱うように実装するため、テストもそれに合わせる。
-        # モックを調整して、stateが存在しない状態をシミュレートする。
-        mock_result.state = "PENDING"  # Celeryのデフォルトの振る舞い
-        mock_result.info = None  # 結果も情報もない
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "processing")
+        self.assertEqual(data["message"], "タスクは待機中です。")
 
-        # 実際のビューでは、task_id がDBや結果バックエンドに存在しない場合を
-        # 判定する必要がある。ここではAsyncResultの振る舞いを模倣する。
-        # 簡単のため、stateが特定の状態でない場合に404を返すロジックをビューに期待する。
-        # ここでは、mock_result.get()が例外を出すケースなどをシミュレートできるが、
-        # 今回は state をもとにビューが判断すると仮定する。
-        #
-        # 最終的なアプローチ：ビュー側で`result.backend.get_task_meta(task_id)`を使って
-        # タスクのメタデータが存在するかを確認する方法が確実。
-        # テストでは、そのメソッドがNoneを返すようにパッチする。
-        with patch.object(
-            mock_async_result.return_value.backend, "get_task_meta", return_value=None
-        ) as mock_get_meta:
-            response = self.client.get(url)
-            self.assertEqual(response.status_code, 404)
-            mock_get_meta.assert_called_once_with(task_id)
+    @patch("apps.gist.views.AsyncResult")
+    def test_get_status_started(self, mock_async_result):
+        """
+        Test getting the status of a started task.
+        """
+        task_id = str(uuid.uuid4())
+        mock_result = mock_async_result.return_value
+        mock_result.state = "STARTED"
+        mock_result.info = None
+
+        url = reverse("gist:get_status", kwargs={"task_id": task_id})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "processing")
+        self.assertEqual(data["message"], "処理中...")
+
+    def test_start_task_get_method_not_allowed(self):
+        """
+        Test that GET request to start_task returns 405.
+        """
+        url = reverse("gist:start_task")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_get_status_post_method_not_allowed(self):
+        """
+        Test that POST request to get_status returns 405.
+        """
+        task_id = str(uuid.uuid4())
+        url = reverse("gist:get_status", kwargs={"task_id": task_id})
+        response = self.client.post(url, {})
+        self.assertEqual(response.status_code, 405)

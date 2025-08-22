@@ -1,3 +1,4 @@
+import json
 import logging
 
 from celery.result import AsyncResult
@@ -20,7 +21,15 @@ def index(request):
 @require_POST
 def start_task(request):
     """URLを受け取り、非同期処理タスクを開始します。"""
-    url = request.POST.get("url")
+    if request.content_type == "application/json":
+        try:
+            data = json.loads(request.body)
+            url = data.get("url")
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "無効なJSONです。"}, status=400)
+    else:
+        url = request.POST.get("url")
+
     if not url:
         return JsonResponse({"error": "URLを入力してください。"}, status=400)
 
@@ -40,11 +49,9 @@ def get_status(request, task_id):
     """タスクIDを受け取り、現在のステータスや結果を返します。"""
     task_result = AsyncResult(task_id)
 
-    # タスクがバックエンドに存在しないかチェック
-    # get_task_metaはタスクが存在しない場合Noneを返す
-    if not task_result.backend.get_task_meta(task_id):
-        return JsonResponse({"status": "error", "message": "タスクが見つかりません。"}, status=404)
-
+    # 存在しないタスクIDの場合、Celeryは 'PENDING' を返すことがある。
+    # ここでは404を返さず、一貫して「処理中」として扱うことで、
+    # フロントエンドのロジックを簡素化し、バックエンドの実装への依存を減らす。
     if task_result.state == "PENDING":
         response = {"status": "processing", "message": "タスクは待機中です。"}
     elif task_result.state in ("PROGRESS", "STARTED"):
