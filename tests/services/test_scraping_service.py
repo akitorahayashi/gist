@@ -91,7 +91,7 @@ class TestScrapingService:
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
 
-        # When: スクレイピングを実行（DNS 依存を避けるため getaddrinfo をスタブ）
+        # When: スクレイピングを実行
         with patch(
             "apps.gist.services.scraping_service.socket.getaddrinfo",
             return_value=[(socket.AF_INET, 0, 0, "", ("93.184.216.34", 0))],
