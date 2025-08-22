@@ -1,32 +1,137 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Web Page Scraper</title>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Enter URL to Scrape</h1>
-    <form method="post">
-        {% csrf_token %}
-        <input type="text" name="url" size="50" placeholder="https://example.com">
-        <button type="submit">Scrape</button>
+    <form id="scrape-form">
+      {% csrf_token %}
+      <input
+        type="text"
+        name="url"
+        id="url-input"
+        size="50"
+        placeholder="https://example.com"
+        required
+      />
+      <button type="submit" id="submit-button">Scrape</button>
     </form>
 
-    {% if summary %}
-    <h2>要約:</h2>
-    <pre style="white-space: pre-wrap;">{{ summary }}</pre>
-    {% endif %}
+    <div id="result-area" style="margin-top: 20px">
+      <!-- 結果はここに表示されます -->
+    </div>
 
-    {% if scraped_content %}
-    <h2>スクレイピングされたコンテンツ:</h2>
-    <details>
-      <summary>表示/非表示を切り替え</summary>
-      <pre style="white-space: pre-wrap;">{{ scraped_content }}</pre>
-    </details>
-    {% endif %}
+    <script>
+      const scrapeForm = document.getElementById("scrape-form");
+      const urlInput = document.getElementById("url-input");
+      const submitButton = document.getElementById("submit-button");
+      const resultArea = document.getElementById("result-area");
+      let pollingInterval;
 
-    {% if error %}
-    <h2>エラー:</h2>
-    <p>{{ error }}</p>
-    {% endif %}
-</body>
+      scrapeForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const url = urlInput.value;
+        const csrfToken = document.querySelector(
+          "[name=csrfmiddlewaretoken]"
+        ).value;
+
+        // 以前の結果をクリアし、処理中メッセージを表示
+        clearResult();
+        showLoading("タスクを開始しています...");
+        submitButton.disabled = true;
+
+        try {
+          // タスク開始APIを呼び出し
+          const startResponse = await fetch("{% url 'gist:start_task' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "X-CSRFToken": csrfToken,
+            },
+            body: `url=${encodeURIComponent(url)}`,
+          });
+
+          if (startResponse.status === 202) {
+            const data = await startResponse.json();
+            // ポーリングを開始
+            startPolling(data.task_id);
+          } else {
+            const errorData = await startResponse.json();
+            showError(
+              `エラー (${startResponse.status}): ${
+                errorData.error || "タスクを開始できませんでした。"
+              }`
+            );
+            submitButton.disabled = false;
+          }
+        } catch (error) {
+          showError("ネットワークエラーが発生しました。");
+          submitButton.disabled = false;
+        }
+      });
+
+      function startPolling(taskId) {
+        showLoading("処理中です... ⏳");
+        pollingInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(
+              `/api/status/${taskId}` // URLはハードコーディング
+            );
+
+            if (!statusResponse.ok) {
+              // 404などのエラー
+              stopPolling();
+              showError(`ステータスの取得に失敗しました (HTTP ${statusResponse.status})。`);
+              return;
+            }
+
+            const data = await statusResponse.json();
+
+            if (data.status === "success") {
+              stopPolling();
+              showSuccess(data.title, data.summary);
+            } else if (data.status === "error") {
+              stopPolling();
+              showError(data.message);
+            } else if (data.status === "processing") {
+              // 進捗メッセージを更新
+              showLoading(data.message + " ⏳");
+            }
+          } catch (error) {
+            stopPolling();
+            showError("ステータス確認中にエラーが発生しました。");
+          }
+        }, 2000); // 2秒ごとにポーリング
+      }
+
+      function stopPolling() {
+        clearInterval(pollingInterval);
+        submitButton.disabled = false;
+      }
+
+      function clearResult() {
+        resultArea.innerHTML = "";
+      }
+
+      function showLoading(message) {
+        resultArea.innerHTML = `<p>${message}</p>`;
+      }
+
+      function showError(message) {
+        resultArea.innerHTML = `
+            <h2>エラー:</h2>
+            <p style="color: red;">${message}</p>
+        `;
+      }
+
+      function showSuccess(title, summary) {
+        resultArea.innerHTML = `
+            <h2>要約:</h2>
+            <h3>${title}</h3>
+            <pre style="white-space: pre-wrap;">${summary}</pre>
+        `;
+      }
+    </script>
+  </body>
 </html>
