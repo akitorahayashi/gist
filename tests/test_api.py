@@ -1,3 +1,4 @@
+import json
 import uuid
 from unittest.mock import patch
 
@@ -172,3 +173,63 @@ class GistApiTests(TestCase):
         url = reverse("gist:get_status", kwargs={"task_id": task_id})
         response = self.client.post(url, {})
         self.assertEqual(response.status_code, 405)
+
+    @patch("apps.gist.views.process_url_task.delay")
+    def test_start_task_valid_url_json(self, mock_delay):
+        """
+        Test that a valid URL sent as JSON returns 202.
+        """
+        mock_task = mock_delay.return_value
+        mock_task.id = str(uuid.uuid4())
+        url = reverse("gist:start_task")
+        response = self.client.post(
+            url,
+            data=json.dumps({"url": "https://example.com"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.json()["task_id"], mock_task.id)
+        mock_delay.assert_called_once_with("https://example.com")
+
+    @patch("apps.gist.views.process_url_task.delay")
+    def test_start_task_broker_down_returns_503(self, mock_delay):
+        """
+        Test that a 503 is returned if the task broker is down.
+        """
+        mock_delay.side_effect = RuntimeError("broker down")
+        url = reverse("gist:start_task")
+        response = self.client.post(url, {"url": "https://example.com"})
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("error", response.json())
+
+    @patch("apps.gist.views.AsyncResult")
+    def test_get_status_retry(self, mock_async_result):
+        """
+        Test getting the status of a retrying task.
+        """
+        task_id = str(uuid.uuid4())
+        mock_result = mock_async_result.return_value
+        mock_result.state = "RETRY"
+        mock_result.info = None
+        url = reverse("gist:get_status", kwargs={"task_id": task_id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "processing")
+        self.assertIn("再試行中", data["message"])
+
+    @patch("apps.gist.views.AsyncResult")
+    def test_get_status_revoked(self, mock_async_result):
+        """
+        Test getting the status of a revoked task.
+        """
+        task_id = str(uuid.uuid4())
+        mock_result = mock_async_result.return_value
+        mock_result.state = "REVOKED"
+        mock_result.info = None
+        url = reverse("gist:get_status", kwargs={"task_id": task_id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "error")
+        self.assertIn("取り消されました", data["message"])

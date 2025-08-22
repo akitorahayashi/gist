@@ -21,7 +21,7 @@ def index(request):
 @require_POST
 def start_task(request):
     """URLを受け取り、非同期処理タスクを開始します。"""
-    if request.content_type == "application/json":
+    if (request.content_type or "").startswith("application/json"):
         try:
             data = json.loads(request.body)
             url = data.get("url")
@@ -30,6 +30,8 @@ def start_task(request):
     else:
         url = request.POST.get("url")
 
+    # 前後空白を除去（コピー＆ペースト由来のスペース混入対策）
+    url = (url or "").strip()
     if not url:
         return JsonResponse({"error": "URLを入力してください。"}, status=400)
 
@@ -40,7 +42,14 @@ def start_task(request):
         return JsonResponse({"error": str(e)}, status=400)
 
     # Celeryタスクを開始
-    task = process_url_task.delay(url)
+    try:
+        task = process_url_task.delay(url)
+    except Exception as e:
+        logger.exception("Failed to enqueue task for url=%r: %s", url, e)
+        return JsonResponse(
+            {"error": "タスクをキューに登録できませんでした。しばらくしてから再試行してください。"},
+            status=503,
+        )
     return JsonResponse({"task_id": task.id}, status=202)
 
 
@@ -61,18 +70,31 @@ def get_status(request, task_id):
         }
     elif task_result.state == "SUCCESS":
         result = task_result.result
-        response = {
-            "status": "success",
-            "title": result.get("title"),
-            "summary": result.get("summary"),
-        }
+        if isinstance(result, dict):
+            response = {
+                "status": "success",
+                "title": result.get("title"),
+                "summary": result.get("summary"),
+            }
+        else:
+            response = {
+                "status": "success",
+                "title": "要約結果",
+                "summary": "" if result is None else str(result),
+            }
     elif task_result.state == "FAILURE":
-        # エラーメッセージを取得
-        # task_result.result にはExceptionオブジェクトが入っている
-        error_message = str(task_result.result)
+        info = getattr(task_result, "info", None)
+        if isinstance(info, dict) and info.get("message"):
+            error_message = info["message"]
+        else:
+            error_message = str(task_result.result)
         response = {"status": "error", "message": error_message}
+    elif task_result.state in ("RETRY",):
+        response = {"status": "processing", "message": "再試行中です..."}
+    elif task_result.state in ("REVOKED",):
+        response = {"status": "error", "message": "タスクは取り消されました。"}
     else:
-        # その他の状態（REVOKEDなど）
-        response = {"status": "unknown", "message": f"不明なステータス: {task_result.state}"}
+        # 上記以外は処理継続扱い
+        response = {"status": "processing", "message": "処理中..."}
 
     return JsonResponse(response)

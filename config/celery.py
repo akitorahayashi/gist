@@ -1,3 +1,4 @@
+import logging
 import os
 
 from celery import Celery
@@ -14,8 +15,6 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Djangoアプリケーションのtasks.pyファイルを自動的に検出
 app.autodiscover_tasks()
 
-
-import logging
 
 logger = logging.getLogger(__name__)
 

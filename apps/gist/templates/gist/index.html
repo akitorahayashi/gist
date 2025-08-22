@@ -30,6 +30,9 @@
       // Djangoで逆引きしたURLテンプレート（__TASK_ID__ を後で置換）
       const statusUrlTemplate = "{% url 'gist:get_status' task_id='__TASK_ID__' %}";
       let pollingInterval;
+      let pollingAbortController;
+      const POLLING_INTERVAL_MS = 2000;
+      const MAX_POLLS = 150; // 5 minutes (2000ms * 150)
 
       scrapeForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -48,10 +51,10 @@
           const startResponse = await fetch("{% url 'gist:start_task' %}", {
             method: "POST",
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              "Content-Type": "application/json",
               "X-CSRFToken": csrfToken,
             },
-            body: `url=${encodeURIComponent(url)}`,
+            body: JSON.stringify({ url }),
           });
 
           if (startResponse.status === 202) {
@@ -69,23 +72,32 @@
               }
             } catch (_) { /* no-op: 既定文言を使用 */ }
             showError(`エラー (${startResponse.status}): ${msg}`);
-            submitButton.disabled = false;
+            stopPolling(); // stopPollingはボタンを有効化するのでここで呼ぶ
           }
         } catch (error) {
           showError("ネットワークエラーが発生しました。");
-          submitButton.disabled = false;
+          stopPolling();
         }
       });
 
       function startPolling(taskId) {
+        stopPolling(); // Start with a clean state
+        pollingAbortController = new AbortController();
+        let pollCount = 0;
+
         showLoading("処理中です... ⏳");
         pollingInterval = setInterval(async () => {
+          if (pollCount++ >= MAX_POLLS) {
+            stopPolling();
+            showError("タイムアウトしました。しばらくしてから再度お試しください。");
+            return;
+          }
+
           try {
             const statusUrl = statusUrlTemplate.replace("__TASK_ID__", encodeURIComponent(taskId));
-            const statusResponse = await fetch(statusUrl);
+            const statusResponse = await fetch(statusUrl, { signal: pollingAbortController.signal });
 
             if (!statusResponse.ok) {
-              // 404などのエラー
               stopPolling();
               showError(`ステータスの取得に失敗しました (HTTP ${statusResponse.status})。`);
               return;
@@ -100,20 +112,30 @@
               stopPolling();
               showError(data.message);
             } else if (data.status === "processing") {
-              // 進捗メッセージを更新
               showLoading(data.message + " ⏳");
+            } else {
+              // Fallback for unknown states
+              showLoading("処理状況を取得しています... ⏳");
             }
           } catch (error) {
+            if (error.name === 'AbortError') {
+              // Polling was intentionally stopped, do nothing.
+              return;
+            }
             stopPolling();
             showError("ステータス確認中にエラーが発生しました。");
           }
-        }, 2000); // 2秒ごとにポーリング
+        }, POLLING_INTERVAL_MS);
       }
 
       function stopPolling() {
         if (pollingInterval) {
           clearInterval(pollingInterval);
           pollingInterval = undefined;
+        }
+        if (pollingAbortController) {
+          pollingAbortController.abort();
+          pollingAbortController = undefined;
         }
         submitButton.disabled = false;
       }
