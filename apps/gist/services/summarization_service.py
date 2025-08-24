@@ -1,19 +1,19 @@
+import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from langchain_ollama import ChatOllama
 
 
-def _ensure_ollama_config():
-    if not settings.OLLAMA_BASE_URL or not settings.OLLAMA_MODEL:
-        raise ImproperlyConfigured("OLLAMA_BASE_URL / OLLAMA_MODEL is not configured.")
+class SummarizationServiceError(Exception):
+    """要約サービスで発生したエラーのベース例外クラス"""
+
+    pass
 
 
 class SummarizationService:
     def __init__(self):
-        _ensure_ollama_config()
-        self.llm = ChatOllama(
-            model=settings.OLLAMA_MODEL, base_url=settings.OLLAMA_BASE_URL
-        )
+        if not settings.PVT_LLM_API_URL:
+            raise ImproperlyConfigured("PVT_LLM_API_URL is not configured.")
+        self.api_base_url = settings.PVT_LLM_API_URL
 
     def summarize(self, text: str, max_chars: int | None = None) -> str:
         if not text:
@@ -22,6 +22,7 @@ class SummarizationService:
             if not hasattr(settings, "SUMMARY_MAX_CHARS"):
                 raise AttributeError("settings.SUMMARY_MAX_CHARS is not defined.")
             max_chars = settings.SUMMARY_MAX_CHARS
+
         truncated_text = text[:max_chars]
         prompt = f"""以下のテキストを日本語で要約してください。
 
@@ -32,9 +33,28 @@ class SummarizationService:
 タイトル: 記事の内容を一行で表すタイトルを1つ生成してください。
 要点: 記事の最も重要なポイントを3つを目安として、最大5つまでの箇条書きで簡潔にまとめてください。各箇条書きは100字以内にしてください。
 """
-        result = self.llm.invoke(prompt)
-        if isinstance(result.content, str):
-            return result.content
-        elif isinstance(result.content, list):
-            return "\n".join(str(item) for item in result.content)
-        return str(result.content)
+
+        api_url = f"{self.api_base_url}/api/v1/generate"
+        headers = {"Content-Type": "application/json"}
+        payload = {"prompt": prompt, "stream": False}
+
+        try:
+            response = requests.post(api_url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()  # 2xx以外のステータスコードでHTTPErrorを送出
+
+            response_json = response.json()
+            if "response" not in response_json:
+                raise SummarizationServiceError(
+                    "APIレスポンスに'response'キーが含まれていません。"
+                )
+
+            return response_json["response"]
+
+        except requests.exceptions.RequestException as e:
+            # ネットワークエラーやタイムアウトなど
+            raise SummarizationServiceError(f"APIへの接続に失敗しました: {e}") from e
+        except ValueError:
+            # JSONデコードエラー
+            raise SummarizationServiceError(
+                "APIレスポンスのJSONデコードに失敗しました。"
+            )
