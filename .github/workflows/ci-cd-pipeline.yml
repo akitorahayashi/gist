@@ -12,4 +12,9 @@ jobs:
     uses: ./.github/workflows/format-and-lint.yml
 
   run-tests:
+    needs: format-and-lint
     uses: ./.github/workflows/run-tests.yml
+
+  build-check:
+    needs: run-tests
+    uses: ./.github/workflows/build-check.yml
