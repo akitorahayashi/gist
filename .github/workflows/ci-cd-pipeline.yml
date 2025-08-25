@@ -15,4 +15,5 @@ jobs:
     uses: ./.github/workflows/run-tests.yml
 
   build-check:
+    needs: [format-and-lint, run-tests]
     uses: ./.github/workflows/build-check.yml

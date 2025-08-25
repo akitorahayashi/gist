@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install poetry
-RUN pip install --no-cache-dir poetry==1.8.3 \
+RUN pip install --no-cache-dir --disable-pip-version-check poetry==1.8.3 \
     && poetry config virtualenvs.in-project true
 
 # --- Builder Stage ---
@@ -55,7 +55,7 @@ RUN chmod +x /entrypoint.sh
 USER appuser
 
 # Copy application code
-COPY . .
+COPY --chown=appuser:appgroup . .
 
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
