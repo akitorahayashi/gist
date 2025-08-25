@@ -10,7 +10,8 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install poetry
-RUN pip install poetry==1.8.3
+RUN pip install --no-cache-dir poetry==1.8.3 \
+    && poetry config virtualenvs.in-project true
 
 # --- Builder Stage ---
 # Installs all dependencies (for development and production)
@@ -43,7 +44,9 @@ RUN addgroup --system appgroup && \
     adduser --system --ingroup appgroup --no-create-home appuser
 
 # Copy virtual environment from the prod-builder stage
-COPY --from=prod-builder /.venv/ /.venv/
+COPY --from=prod-builder /app/.venv/ /opt/venv/
+# Ensure venv on PATH
+ENV PATH="/opt/venv/bin:${PATH}"
 # Copy the entrypoint script
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
