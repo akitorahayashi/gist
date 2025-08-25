@@ -16,11 +16,6 @@ jobs:
           python-version-file: .python-version
           cache: 'poetry'
 
-      - name: Install Poetry
-        run: |
-          pip install poetry==1.8.3
-          poetry config virtualenvs.create false
-
       - name: Install dependencies
         run: poetry install --no-root
 
