@@ -26,23 +26,22 @@ if env_path.is_file():
     load_dotenv(dotenv_path=env_path)
 
 # 環境変数からすべてのカスタム設定を読み込む
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip() or None
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "").strip() or None
+PVT_LLM_API_URL = os.getenv("PVT_LLM_API_URL", "").strip() or None
 _summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "600")
 
 
 # 読み込んだ設定値を検証
-if OLLAMA_BASE_URL:
-    _parsed_url = urlparse(OLLAMA_BASE_URL)
+if PVT_LLM_API_URL:
+    _parsed_url = urlparse(PVT_LLM_API_URL)
     if _parsed_url.scheme not in ("http", "https"):
         raise ImproperlyConfigured(
-            "OLLAMA_BASE_URL must start with http:// or https://."
+            "PVT_LLM_API_URL must start with http:// or https://."
         )
     if not _parsed_url.netloc:
         raise ImproperlyConfigured(
-            "OLLAMA_BASE_URL must include a hostname (e.g., http://localhost:11434)."
+            "PVT_LLM_API_URL must include a hostname (e.g., http://localhost:8000)."
         )
-    OLLAMA_BASE_URL = OLLAMA_BASE_URL.rstrip("/")
+    PVT_LLM_API_URL = PVT_LLM_API_URL.rstrip("/")
 
 try:
     SUMMARY_MAX_CHARS = int(_summary_max_chars_raw)

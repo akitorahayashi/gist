@@ -26,8 +26,7 @@ jobs:
 
       - name: Run Django Tests
         env:
-          OLLAMA_BASE_URL: http://127.0.0.1:11434
-          OLLAMA_MODEL: qwen3:8b
+          PVT_LLM_API_URL: http://127.0.0.1:8000
           SUMMARY_MAX_CHARS: 600
         run: |
           poetry run pytest
