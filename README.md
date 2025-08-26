@@ -40,16 +40,24 @@ make up
 make down
 ```
 
-### 本番環境での実行
+### 本番環境を模した実行 (Production-like Execution)
 
-本番環境をシミュレートするには、`ENV=prod` を指定します。
+本番環境をシミュレートするためのコマンドが用意されています。これにより、`docker-compose.override.yml` を使用せず、本番に近い設定でコンテナを起動できます。
+
+コンテナをビルドして起動するには、以下のコマンドを実行します。
 
 ```bash
-make up ENV=prod
+make up-prod
 ```
 
 > **⚠️ 重要**
-> `make up ENV=prod` を実行する前に、`.env.example` をコピーして `.env.prod` ファイルを作成する必要があります。`.env.prod` ファイルには本番環境用の設定を記述し、このファイルは `.gitignore` によりバージョン管理から除外されています。
+> `make up-prod` を実行する前に、`.env.example` をコピーして `.env.prod` ファイルを作成し、本番用の環境変数を設定する必要があります。`.env.prod` ファイルは `.gitignore` によりバージョン管理から除外されています。
+
+本番環境用のコンテナを停止・削除するには、以下のコマンドを実行します。
+
+```bash
+make down-prod
+```
 
 ## ✅ テストとコード品質
 
@@ -89,24 +97,22 @@ make format-check
 
 プロジェクトで利用可能なすべてのコマンドは、`make help`で確認できます。以下は主なコマンドの概要です。
 
-```text
-  一般的なコマンド
-    all            - 'setup'と'up'を実行し、開発環境を完全に起動します。
-    clean          - 生成されたファイル（.envシンボリックリンク）を削除します。
-
-  プロジェクトセットアップ
-    setup          - 開発環境をセットアップします（Poetry依存関係のインストール）。
-
-  Docker管理
-    up             - Dockerコンテナをビルドして起動します（デフォルト: dev環境）。
-    down           - Dockerコンテナを停止して削除します。
-    logs           - 実行中のDockerコンテナのログをリアルタイムで表示します。
-    shell          - 実行中の'web'サービスコンテナのシェルに接続します。
-
-  コード品質とテスト
-    test           - poetry環境でpytestを実行します。 'ENV'変数で環境を指定できます (例: make test ENV=dev)。
-    format         - BlackとRuffを使用してコードスタイルを自動で修正します。
-    format-check   - Blackでコードスタイルが正しいかチェックします。
-    lint           - Ruffでリントを実行します。
-    lint-check     - Ruffでリントエラーがないかチェックします。
-```
+| コマンド              | 説明                                                                 |
+| --------------------- | -------------------------------------------------------------------- |
+| `make setup`          | `.env.dev` と `.env.prod` ファイルを `.env.example` から作成します。   |
+| `make up`             | 開発環境のDockerコンテナをビルドして起動します。                     |
+| `make down`           | 開発環境のDockerコンテナを停止・削除します。                         |
+| `make rebuild`        | 開発コンテナをキャッシュなしで再ビルドし、再起動します。             |
+| `make logs`           | 開発コンテナのログを表示します。                                     |
+| `make shell`          | 開発用の`web`コンテナ内でシェルを起動します。                        |
+| `make up-prod`        | 本番環境用のDockerコンテナをビルドして起動します。                   |
+| `make down-prod`      | 本番環境用のDockerコンテナを停止・削除します。                       |
+| `make migrate`        | 開発環境でデータベースのマイグレーションを実行します。               |
+| `make superuser`      | 開発環境でDjangoのスーパーユーザーを作成します。                     |
+| `make migrate-prod`   | 本番環境でデータベースのマイグレーションを実行します。               |
+| `make superuser-prod` | 本番環境でDjangoのスーパーユーザーを作成します。                     |
+| `make test`           | `web`コンテナ内でテストスイートを実行します。                        |
+| `make format`         | `black` と `ruff` を使ってコードをフォーマットします。               |
+| `make lint-check`     | `ruff` でリントエラーがないかチェックします。                        |
+| `make clean`          | すべてのコンテナを停止し、生成されたファイルをクリーンアップします。 |
+| `make help`           | 利用可能なすべてのコマンドのリストと説明を表示します。               |

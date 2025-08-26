@@ -15,5 +15,4 @@ jobs:
 
       - name: Build Docker image (production)
         run: |
-          cp -f .env.dev .env
-          docker compose -f docker-compose.yml build --no-cache --progress=plain web
+          docker compose -f docker-compose.yml --env-file .env.dev build --no-cache --progress=plain web

@@ -10,6 +10,7 @@ __pycache__/
 *.so
 
 # Environments
+.env
 .env.*
 # .env.exampleと.env.devはバージョン管理に含める
 !.env.example

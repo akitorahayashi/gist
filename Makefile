@@ -1,122 +1,154 @@
-# --- 環境設定 ---
-# .envファイルは、実際の環境ファイル（例：.env.dev, .env.prod）を指すシンボリックリンクです。
-# この設定により、タスクごとに環境を簡単に切り替えることができます。
-# DOCKER_COMPOSE変数は、開発タスクにdocker-compose.ymlとdocker-compose.override.ymlの両方が
-# 使用されるようにします。
+# ==============================================================================
+# Makefile for Gist Summarizer
+#
+# This Makefile provides a set of commands to manage the development and
+# production-like environments for the Gist Summarizer application.
+# ==============================================================================
 
-# デフォルト環境は'dev'
-ENV ?= dev
-# 基本のdocker-composeコマンド (環境変数で上書き可能)
-DOCKER_COMPOSE ?= docker compose
-# makeコマンド用のシェル
-SHELL := /bin/bash
+# --- Variables ---
+# Project name, derived from the current directory name
+PROJECT_NAME := $(shell basename $(CURDIR))
 
-# `make`が引数なしで実行された場合のデフォルトターゲット
+# Docker Compose command wrappers
+# For development, it uses docker-compose.override.yml by default.
+DEV_COMPOSE := sudo docker compose --project-name $(PROJECT_NAME)-dev
+# For production, it explicitly uses only the base docker-compose.yml.
+PROD_COMPOSE := sudo docker compose -f docker-compose.yml --project-name $(PROJECT_NAME)-prod
+
+# Default target to run when make is called without arguments
 .DEFAULT_GOAL := help
 
-# --- ターゲットをPhonyとして宣言 ---
-.PHONY: all setup up down logs shell test format format-check lint lint-check clean help
-
-# --- プロジェクトセットアップ --------------------------------------------------
-setup:
-	@echo "--- セットアップ開始: (.env.dev) 環境 ---"
-	@echo "Python依存関係をインストール中..."
+# --- Environment Setup ---
+.PHONY: setup
+setup: ## Install dependencies and create .env files from .env.example
+	@echo "Installing python dependencies with Poetry..."
 	@poetry install
-	@echo "--- セットアップ完了 ---"
-
-
-# --- Dockerコマンド ------------------------------------------------
-up:
-	@echo "--- Dockerコンテナを起動中... ---"
-	@ln -sf .env.$(ENV) .env
-	$(DOCKER_COMPOSE) up --build -d
-	@echo "--- Dockerコンテナがバックグラウンドで実行中です ---"
-
-down:
-	@echo "--- Dockerコンテナを停止・削除中... ---"
-	@ln -sf .env.$(ENV) .env
-	$(DOCKER_COMPOSE) down
-	@echo "--- Dockerコンテナが停止しました ---"
-
-logs:
-	@echo "--- Dockerコンテナのログを表示中... (Ctrl+Cで終了) ---"
-	@ln -sf .env.$(ENV) .env
-	$(DOCKER_COMPOSE) logs -f
-
-shell:
-	@echo "--- webコンテナのシェルに接続中... ---"
-	@if [ -z "$$($(DOCKER_COMPOSE) ps -q web)" ] || [ "$$($(DOCKER_COMPOSE) ps -q web | xargs docker inspect -f '{{.State.Status}}')" != "running" ]; then \
-		echo "Error: web container is not running. Please run 'make up' first."; \
-		exit 1; \
+	@if [ ! -f .env.dev ]; then \
+		echo "Creating .env.dev from .env.example..."; \
+		cp .env.example .env.dev; \
 	fi
-	@ln -sf .env.$(ENV) .env
-	$(DOCKER_COMPOSE) exec web /bin/bash
-	@echo "--- シェルセッションを終了しました ---"
+	@if [ ! -f .env.prod ]; then \
+		echo "Creating .env.prod from .env.example..."; \
+		cp .env.example .env.prod; \
+	fi
+	@echo "Setup complete. Dependencies are installed and .env files are ready."
 
+# --- Development Environment Commands ---
+.PHONY: up
+up: ## Build images and start development containers
+	@ln -sf .env.dev .env
+	@echo "Starting up DEVELOPMENT containers..."
+	@$(DEV_COMPOSE) up --build -d
 
-# --- コード品質とテスト -----------------------------------------
-test:
-	@echo "--- テストを実行中 (ENV=$(ENV))... ---"
-	@ln -sf .env.$(ENV) .env
+.PHONY: down
+down: ## Stop and remove development containers
+	@ln -sf .env.dev .env
+	@echo "Stopping DEVELOPMENT containers..."
+	@$(DEV_COMPOSE) down --remove-orphans
+
+.PHONY: rebuild
+rebuild: ## Rebuild dev services, pulling base images, without cache, and restart
+	@ln -sf .env.dev .env
+	@echo "Rebuilding all DEVELOPMENT services with --no-cache and --pull..."
+	@$(DEV_COMPOSE) up -d --build --no-cache --pull always
+
+.PHONY: logs
+logs: ## Show and follow development container logs
+	@ln -sf .env.dev .env
+	@echo "Showing DEVELOPMENT logs..."
+	@$(DEV_COMPOSE) logs -f
+
+.PHONY: shell
+shell: ## Start a shell inside the development 'web' container
+	@ln -sf .env.dev .env
+	@$(DEV_COMPOSE) ps --status=running --services | grep -q '^web$$' || { echo "Error: web container is not running. Please run 'make up' first." >&2; exit 1; }
+	@echo "Connecting to DEVELOPMENT 'web' container shell..."
+	@$(DEV_COMPOSE) exec web /bin/bash
+
+# --- Production-like Environment Commands ---
+.PHONY: up-prod
+up-prod: ## Build images and start production-like containers
+	@ln -sf .env.prod .env
+	@echo "Starting up PRODUCTION-like containers..."
+	@$(PROD_COMPOSE) up -d --build
+
+.PHONY: down-prod
+down-prod: ## Stop and remove production-like containers
+	@ln -sf .env.prod .env
+	@echo "Shutting down PRODUCTION-like containers..."
+	@$(PROD_COMPOSE) down --remove-orphans
+
+# --- Database and Application Commands ---
+.PHONY: migrate
+migrate: ## [DEV] Run database migrations
+	@ln -sf .env.dev .env
+	@echo "Running DEVELOPMENT database migrations..."
+	@$(DEV_COMPOSE) exec web poetry run python manage.py migrate
+
+.PHONY: makemigrations
+makemigrations: ## [DEV] Create new migration files
+	@ln -sf .env.dev .env
+	@$(DEV_COMPOSE) exec web poetry run python manage.py makemigrations
+
+.PHONY: superuser
+superuser: ## [DEV] Create a Django superuser
+	@ln -sf .env.dev .env
+	@echo "Creating DEVELOPMENT superuser..."
+	@$(DEV_COMPOSE) exec web poetry run python manage.py createsuperuser
+
+.PHONY: migrate-prod
+migrate-prod: ## [PROD] Run database migrations in the production-like environment
+	@ln -sf .env.prod .env
+	@echo "Running PRODUCTION-like database migrations..."
+	@$(PROD_COMPOSE) exec web python manage.py migrate
+
+.PHONY: superuser-prod
+superuser-prod: ## [PROD] Create a Django superuser in the production-like environment
+	@ln -sf .env.prod .env
+	@echo "Creating PRODUCTION-like superuser..."
+	@$(PROD_COMPOSE) exec web python manage.py createsuperuser
+
+# --- Code Quality and Testing ---
+.PHONY: test
+test: ## Run the test suite using the host's poetry environment
+	@ln -sf .env.dev .env
+	@echo "Running test suite on host..."
 	poetry run pytest
-	@echo "--- テスト完了 ---"
 
-format:
-	@echo "--- コードをフォーマット中... (black, ruff) ---"
+.PHONY: format
+format: ## Format the code using Black and Ruff
+	@echo "Formatting code with Black and Ruff..."
 	poetry run black .
 	poetry run ruff check . --fix
-	@echo "--- フォーマット完了 ---"
 
-format-check:
-	@echo "--- コードフォーマットをチェック中... (black) ---"
+.PHONY: format-check
+format-check: ## Check if the code is formatted with Black
+	@echo "Checking code format with Black..."
 	poetry run black --check .
-	@echo "--- Blackフォーマットチェック完了 ---"
 
-lint:
-	@echo "--- リントを実行中... (ruff) ---"
+.PHONY: lint
+lint: ## Lint the code with Ruff
+	@echo "Linting code with Ruff..."
 	poetry run ruff check .
-	@echo "--- リント完了 ---"
 
-lint-check:
-	@echo "--- リントをチェック中... (ruff) ---"
+.PHONY: lint-check
+lint-check: ## Check the code for issues with Ruff
+	@echo "Checking code with Ruff..."
 	poetry run ruff check .
-	@echo "--- Ruffリントチェック完了 ---"
 
-
-# --- 一般的なコマンド ----------------------------------------------
-all: setup up
-
-clean:
-	@echo "--- クリーンアップ中... ---"
+# --- Cleanup ---
+.PHONY: clean
+clean: ## Remove all generated files and stop all containers
+	@echo "Cleaning up project..."
+	@$(DEV_COMPOSE) down -v --remove-orphans
+	@$(PROD_COMPOSE) down -v --remove-orphans
 	@rm -f .env
-	@echo "--- .env シンボリックリンクを削除しました ---"
+	@echo "Cleanup complete."
 
-
-# --- ヘルプ -----------------------------------------------------------
-help:
-	@echo "利用可能なMakefileコマンド:"
+# --- Help ---
+.PHONY: help
+help: ## Show this help message
+	@echo "Usage: make [target]"
 	@echo ""
-	@echo "  一般的なコマンド"
-	@echo "    all            - 'setup'と'up'を実行し、開発環境を完全に起動します。"
-	@echo "    clean          - 生成されたファイル（.envシンボリックリンク）を削除します。"
-	@echo ""
-	@echo "  プロジェクトセットアップ"
-	@echo "    setup          - 開発環境をセットアップします（Poetry依存関係のインストール）。"
-	@echo ""
-	@echo "  Docker管理"
-	@echo "    up             - Dockerコンテナをビルドして起動します（デフォルト: dev環境）。"
-	@echo "    down           - Dockerコンテナを停止して削除します。"
-	@echo "    logs           - 実行中のDockerコンテナのログをリアルタイムで表示します。"
-	@echo "    shell          - 実行中の'web'サービスコンテナのシェルに接続します。"
-	@echo ""
-	@echo "  コード品質とテスト"
-	@echo "    test           - poetry環境でpytestを実行します。 'ENV'変数で環境を指定できます (例: make test ENV=dev)。"
-	@echo "    format         - BlackとRuffを使用してコードスタイルを自動で修正します。"
-	@echo "    format-check   - Blackでコードスタイルが正しいかチェックします。"
-	@echo "    lint           - Ruffでリントを実行します。"
-	@echo "    lint-check     - Ruffでリントエラーがないかチェックします。"
-	@echo ""
-	@echo "  使い方:"
-	@echo "    make up        - 開発環境でコンテナを起動します。"
-	@echo "    make up ENV=prod - 本番環境でコンテナを起動します。"
-	@echo ""
+	@echo "Available targets:"
+	@awk 'BEGIN {FS = ":.*?## "; OFS="t"} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-25s\033[0m %sn", $$1, $$2}' $(MAKEFILE_LIST)
