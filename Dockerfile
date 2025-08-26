@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install poetry
-RUN pip install --no-cache-dir --disable-pip-version-check poetry==1.8.3 \
+RUN pip install --no-cache-dir --disable-pip-version-check poetry \
     && poetry config virtualenvs.in-project true
 
 # --- Builder Stage ---
