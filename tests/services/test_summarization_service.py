@@ -8,7 +8,8 @@ from django.test import override_settings
 
 from apps.gist.services.summarization_service import (
     HEALTH_CHECK_TIMEOUT,
-    SUMMARIZE_TIMEOUT,
+    SUMMARIZE_CONNECT_TIMEOUT,
+    SUMMARIZE_READ_TIMEOUT,
     SummarizationService,
     SummarizationServiceError,
 )
@@ -23,7 +24,7 @@ HEALTH_API_PATH = "health"
 def mock_get(mocker):
     """Fixture for the mocked requests.get."""
     return mocker.patch(
-        "apps.gist.services.summarization_service.requests.get", spec=True
+        "apps.gist.services.summarization_service.requests.get", autospec=True
     )
 
 
@@ -31,7 +32,7 @@ def mock_get(mocker):
 def mock_post(mocker):
     """Fixture for the mocked requests.post."""
     return mocker.patch(
-        "apps.gist.services.summarization_service.requests.post", spec=True
+        "apps.gist.services.summarization_service.requests.post", autospec=True
     )
 
 
@@ -47,6 +48,7 @@ def mock_health_check_success(mock_get):
     """Fixture to mock a successful health check."""
     mock_response = MagicMock(spec=requests.Response)
     mock_response.status_code = 200
+    mock_response.ok = True
     mock_get.return_value = mock_response
     return mock_get
 
@@ -58,11 +60,10 @@ def mock_health_check_success(mock_get):
     "base_url",
     [API_URL, f"{API_URL}/"],
 )
-def test_summarize_success(
-    summarization_service, mock_health_check_success, mock_post, base_url
-):
+def test_summarize_success(mock_health_check_success, mock_post, base_url):
     # Given
     with override_settings(PVT_LLM_API_URL=base_url):
+        service = SummarizationService()
         expected_summary = "タイトル: テスト\n要点:\n- テストです"
         mock_api_response = MagicMock(spec=requests.Response)
         mock_api_response.status_code = 200
@@ -72,7 +73,7 @@ def test_summarize_success(
         text = "これはテスト用のテキストです。"
 
         # When
-        result = summarization_service.summarize(text)
+        result = service.summarize(text)
 
         # Then
         assert result == expected_summary
@@ -87,7 +88,10 @@ def test_summarize_success(
         mock_post.assert_called_once()
         call_args, call_kwargs = mock_post.call_args
         assert call_args[0] == api_url
-        assert call_kwargs["timeout"] == SUMMARIZE_TIMEOUT
+        assert call_kwargs["timeout"] == (
+            SUMMARIZE_CONNECT_TIMEOUT,
+            SUMMARIZE_READ_TIMEOUT,
+        )
         assert "prompt" in call_kwargs["json"]
 
 
@@ -108,8 +112,10 @@ def test_summarize_empty_or_whitespace_input(
     "side_effect, error_message_match",
     [
         (
-            type("MockResponse", (object,), {"status_code": 503}),
-            "LLM API is unhealthy",
+            MagicMock(
+                spec=requests.Response, status_code=503, ok=False, text="Server Error"
+            ),
+            "LLM API is unhealthy. Status: 503, Body: Server Error",
         ),
         (requests.exceptions.Timeout("Connection timed out"), "Failed to connect"),
     ],
@@ -118,10 +124,10 @@ def test_health_check_fails(
     summarization_service, mock_get, mock_post, side_effect, error_message_match
 ):
     # Given
-    if isinstance(side_effect, type) and hasattr(side_effect, "status_code"):
-        mock_get.return_value = side_effect
-    else:
+    if isinstance(side_effect, Exception):
         mock_get.side_effect = side_effect
+    else:
+        mock_get.return_value = side_effect
 
     # When & Then
     with pytest.raises(SummarizationServiceError, match=error_message_match):
