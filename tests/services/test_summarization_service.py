@@ -9,14 +9,14 @@ from django.test import override_settings
 from apps.gist.services.summarization_service import (
     SummarizationService,
     SummarizationServiceError,
+    HEALTH_CHECK_TIMEOUT,
+    SUMMARIZE_TIMEOUT,
 )
 
 # Constants
 API_URL = "http://llm-api:8000"
 GENERATE_API_PATH = "api/v1/generate"
 HEALTH_API_PATH = "health"
-DEFAULT_TIMEOUT = 60
-HEALTH_TIMEOUT = 5
 
 
 @pytest.fixture
@@ -43,9 +43,9 @@ def summarization_service():
 
 
 @pytest.fixture
-def mock_health_check_success(mock_get, summarization_service):
+def mock_health_check_success(mock_get):
     """Fixture to mock a successful health check."""
-    mock_response = requests.Response()
+    mock_response = MagicMock(spec=requests.Response)
     mock_response.status_code = 200
     mock_get.return_value = mock_response
     return mock_get
@@ -64,9 +64,9 @@ def test_summarize_success(
     # Given
     with override_settings(PVT_LLM_API_URL=base_url):
         expected_summary = "タイトル: テスト\n要点:\n- テストです"
-        mock_api_response = requests.Response()
+        mock_api_response = MagicMock(spec=requests.Response)
         mock_api_response.status_code = 200
-        mock_api_response.json = lambda: {"response": expected_summary}
+        mock_api_response.json.return_value = {"response": expected_summary}
         mock_post.return_value = mock_api_response
 
         text = "これはテスト用のテキストです。"
@@ -80,14 +80,14 @@ def test_summarize_success(
         # Verify calls
         health_url = urljoin(base_url, HEALTH_API_PATH)
         mock_health_check_success.assert_called_once_with(
-            health_url, timeout=HEALTH_TIMEOUT
+            health_url, timeout=HEALTH_CHECK_TIMEOUT
         )
 
         api_url = urljoin(base_url, GENERATE_API_PATH)
         mock_post.assert_called_once()
         call_args, call_kwargs = mock_post.call_args
         assert call_args[0] == api_url
-        assert call_kwargs["timeout"] == DEFAULT_TIMEOUT
+        assert call_kwargs["timeout"] == SUMMARIZE_TIMEOUT
         assert "prompt" in call_kwargs["json"]
 
 
@@ -123,11 +123,13 @@ def test_health_check_fails(
     else:
         mock_get.side_effect = side_effect
 
-    # Then
+    # When & Then
     with pytest.raises(SummarizationServiceError, match=error_message_match):
-        # When
         summarization_service.summarize("test text")
 
+    # Verify calls
+    health_url = urljoin(API_URL, HEALTH_API_PATH)
+    mock_get.assert_called_once_with(health_url, timeout=HEALTH_CHECK_TIMEOUT)
     mock_post.assert_not_called()
 
 
@@ -138,12 +140,13 @@ def test_summarize_truncates_text(
     # Given
     max_chars = 10
     text = "This is a very long text that should be truncated."
-    mock_post.return_value = requests.Response()
-    mock_post.return_value.status_code = 200
-    mock_post.return_value.json = lambda: {"response": "summary"}
+    mock_api_response = MagicMock(spec=requests.Response)
+    mock_api_response.status_code = 200
+    mock_api_response.json.return_value = {"response": "summary"}
+    mock_post.return_value = mock_api_response
 
     # When
-    summarization_service.summarize(text, max_chars=max_chars)
+    summarization_service.summarize(text)
 
     # Then
     payload = mock_post.call_args.kwargs["json"]
@@ -158,9 +161,10 @@ def test_summarize_with_max_chars_arg(
     # Given
     text = "This text should be truncated by the argument."
     max_chars_arg = 5
-    mock_post.return_value = requests.Response()
-    mock_post.return_value.status_code = 200
-    mock_post.return_value.json = lambda: {"response": "summary"}
+    mock_api_response = MagicMock(spec=requests.Response)
+    mock_api_response.status_code = 200
+    mock_api_response.json.return_value = {"response": "summary"}
+    mock_post.return_value = mock_api_response
 
     # When
     summarization_service.summarize(text, max_chars=max_chars_arg)
@@ -173,47 +177,57 @@ def test_summarize_with_max_chars_arg(
 
 
 @pytest.mark.parametrize(
-    "setup_mock, error_message_match",
+    "side_effect, error_message_match",
+    [
+        (requests.exceptions.HTTPError("404 Not Found"), "APIへの接続に失敗しました"),
+        (requests.exceptions.Timeout("Timeout"), "APIへの接続に失敗しました"),
+    ],
+)
+def test_summarize_api_fails_on_call(
+    summarization_service,
+    mock_health_check_success,
+    mock_post,
+    side_effect,
+    error_message_match,
+):
+    # Given
+    mock_post.side_effect = side_effect
+
+    # Then
+    with pytest.raises(SummarizationServiceError, match=error_message_match):
+        # When
+        summarization_service.summarize("test text")
+
+
+@pytest.mark.parametrize(
+    "setup_response_mock, error_message_match",
     [
         (
-            lambda mock: setattr(
-                mock.return_value,
-                "raise_for_status",
-                MagicMock(side_effect=requests.exceptions.HTTPError("404 Not Found")),
-            ),
+            lambda resp: setattr(resp, "raise_for_status", MagicMock(side_effect=requests.exceptions.HTTPError)),
             "APIへの接続に失敗しました",
         ),
         (
-            lambda mock: setattr(
-                mock, "side_effect", requests.exceptions.Timeout("Timeout")
-            ),
-            "APIへの接続に失敗しました",
-        ),
-        (
-            lambda mock: setattr(
-                mock.return_value,
-                "json",
-                MagicMock(side_effect=ValueError("JSON decode error")),
-            ),
+            lambda resp: setattr(resp, "json", MagicMock(side_effect=ValueError)),
             "APIレスポンスのJSONデコードに失敗しました",
         ),
         (
-            lambda mock: setattr(
-                mock.return_value, "json", lambda: {"detail": "wrong key"}
-            ),
+            lambda resp: setattr(resp, "json", MagicMock(return_value={"detail": "wrong key"})),
             "APIレスポンスに'response'キーが含まれていません。",
         ),
     ],
 )
-def test_summarize_api_fails(
+def test_summarize_api_fails_on_response(
     summarization_service,
     mock_health_check_success,
     mock_post,
-    setup_mock,
+    setup_response_mock,
     error_message_match,
 ):
     # Given
-    setup_mock(mock_post)
+    mock_response = MagicMock(spec=requests.Response)
+    mock_response.status_code = 200
+    setup_response_mock(mock_response)
+    mock_post.return_value = mock_response
 
     # Then
     with pytest.raises(SummarizationServiceError, match=error_message_match):

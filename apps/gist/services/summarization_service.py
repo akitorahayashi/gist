@@ -4,6 +4,10 @@ import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+# --- Constants ---
+HEALTH_CHECK_TIMEOUT = 5
+SUMMARIZE_TIMEOUT = 60
+
 
 class SummarizationServiceError(Exception):
     """要約サービスで発生したエラーのベース例外クラス"""
@@ -24,7 +28,7 @@ class SummarizationService:
         """
         health_check_url = urljoin(self.api_base_url.rstrip("/") + "/", "health")
         try:
-            response = requests.get(health_check_url, timeout=5)
+            response = requests.get(health_check_url, timeout=HEALTH_CHECK_TIMEOUT)
             if response.status_code != 200:
                 raise SummarizationServiceError(
                     f"LLM API is unhealthy. Status: {response.status_code}"
@@ -59,7 +63,9 @@ class SummarizationService:
         payload = {"prompt": prompt, "stream": False}
 
         try:
-            response = requests.post(api_url, headers=headers, json=payload, timeout=60)
+            response = requests.post(
+                api_url, headers=headers, json=payload, timeout=SUMMARIZE_TIMEOUT
+            )
             response.raise_for_status()  # 2xx以外のステータスコードでHTTPErrorを送出
 
             response_json = response.json()
