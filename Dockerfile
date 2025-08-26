@@ -51,13 +51,17 @@ ENV PATH="/opt/venv/bin:${PATH}"
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy application code first
+COPY manage.py .
+COPY apps/ ./apps/
+COPY config/ ./config/
+
+# Collect static files and set permissions
+RUN python manage.py collectstatic --noinput && \
+    chown -R appuser:appgroup /app
+
 # Switch to the non-privileged user
 USER appuser
-
-# Copy application code
-COPY --chown=appuser:appgroup apps/ ./apps/
-COPY --chown=appuser:appgroup config/ ./config/
-COPY --chown=appuser:appgroup manage.py .
 
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
