@@ -50,8 +50,6 @@ RUN addgroup --system appgroup && \
 
 # Copy virtual environment from the prod-builder stage
 COPY --from=prod-builder /app/.venv/ /opt/venv/
-# Ensure venv on PATH
-ENV PATH="/opt/venv/bin:${PATH}"
 # Copy the entrypoint script
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
@@ -66,6 +64,9 @@ COPY --chown=appuser:appgroup config/ ./config/
 
 # Switch to the non-privileged user
 USER appuser
+
+# Ensure venv on PATH for the appuser
+ENV PATH="/opt/venv/bin:${PATH}"
 
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
