@@ -53,7 +53,15 @@ def e2e_setup() -> Generator[None, None, None]:
             time.sleep(5)
 
     if not is_healthy:
-        log_command = ["sudo", "docker", "compose", "--project-name", "gist-test", "logs", "web"]
+        log_command = [
+            "sudo",
+            "docker",
+            "compose",
+            "--project-name",
+            "gist-test",
+            "logs",
+            "web",
+        ]
         subprocess.run(log_command)
         pytest.fail(f"Application did not become healthy within {timeout} seconds.")
 
@@ -61,5 +69,13 @@ def e2e_setup() -> Generator[None, None, None]:
 
     # Stop services
     print("\n🛑 Stopping E2E services...")
-    compose_down_command = ["sudo", "docker", "compose", "--project-name", "gist-test", "down", "--remove-orphans"]
+    compose_down_command = [
+        "sudo",
+        "docker",
+        "compose",
+        "--project-name",
+        "gist-test",
+        "down",
+        "--remove-orphans",
+    ]
     subprocess.run(compose_down_command, check=True)

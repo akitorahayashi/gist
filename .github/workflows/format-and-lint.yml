@@ -15,15 +15,18 @@ jobs:
         with:
           python-version-file: .python-version
 
-      - name: Install and configure Poetry
+      - name: Install Poetry
+        run: pipx install poetry
+        
+      - name: Configure Poetry
         run: |
-          pipx install poetry
           poetry config virtualenvs.in-project true
+          poetry config virtualenvs.create true
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: |
-          poetry install --no-root
-
+        run: make setup
+          
       - name: Run Ruff Linter
         run: make lint-check
 

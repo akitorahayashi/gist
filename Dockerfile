@@ -61,11 +61,12 @@ COPY --chown=appuser:appgroup manage.py .
 COPY --chown=appuser:appgroup apps/ ./apps/
 COPY --chown=appuser:appgroup config/ ./config/
 
+# Grant ownership of the app directory to the appuser
+# This allows the user to create files like the SQLite database
+RUN chown appuser:appgroup /app
+
 # Switch to the non-privileged user
 USER appuser
 
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
-
-# Default command (can be overridden)
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]

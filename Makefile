@@ -98,9 +98,6 @@ superuser-prod: ## [PROD] Create a Django superuser in the production-like envir
 # Define VENV_PATH to ensure we use the correct python/pytest executable, avoiding `poetry run` issues.
 VENV_PATH := $(shell poetry env info --path)
 
-.PHONY: test
-test: unit-test e2e-test ## Run both unit and E2E tests
-
 .PHONY: unit-test
 unit-test: ## Run unit tests
 	@echo "Running unit tests..."
@@ -110,6 +107,9 @@ unit-test: ## Run unit tests
 e2e-test: ## Run E2E tests
 	@echo "Running E2E tests..."
 	@$(VENV_PATH)/bin/pytest tests/e2e
+
+.PHONY: test
+test: unit-test e2e-test ## Run the full test suite
 
 .PHONY: format
 format: ## Format the code using Black and Ruff
