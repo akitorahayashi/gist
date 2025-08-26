@@ -16,3 +16,6 @@ jobs:
 
   build-check:
     uses: ./.github/workflows/build-check.yml
+
+  e2e-tests:
+    uses: ./.github/workflows/e2e-tests.yml

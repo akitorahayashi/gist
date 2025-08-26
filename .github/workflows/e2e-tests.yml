@@ -1,0 +1,29 @@
+name: E2E Tests
+
+on:
+  workflow_call:
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Read .python-version
+        id: python-version
+        run: echo "version=$(cat .python-version)" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ steps.python-version.outputs.version }}
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Setup environment
+        run: make setup
+
+      - name: Run E2E tests
+        run: make e2e-test

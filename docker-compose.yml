@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    env_file:
-      - .env
     restart: unless-stopped
     volumes:
       - static_volume:/app/static
