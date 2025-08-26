@@ -12,9 +12,8 @@ __pycache__/
 # Environments
 .env
 .env.*
-# .env.exampleと.env.devはバージョン管理に含める
+# .env.exampleはバージョン管理に含める
 !.env.example
-!.env.dev
 .venv
 env/
 venv/
