@@ -1,5 +1,5 @@
-from urllib.parse import urljoin
 from unittest.mock import MagicMock
+from urllib.parse import urljoin
 
 import pytest
 import requests
@@ -7,10 +7,10 @@ from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
 from apps.gist.services.summarization_service import (
-    SummarizationService,
-    SummarizationServiceError,
     HEALTH_CHECK_TIMEOUT,
     SUMMARIZE_TIMEOUT,
+    SummarizationService,
+    SummarizationServiceError,
 )
 
 # Constants
@@ -203,7 +203,11 @@ def test_summarize_api_fails_on_call(
     "setup_response_mock, error_message_match",
     [
         (
-            lambda resp: setattr(resp, "raise_for_status", MagicMock(side_effect=requests.exceptions.HTTPError)),
+            lambda resp: setattr(
+                resp,
+                "raise_for_status",
+                MagicMock(side_effect=requests.exceptions.HTTPError),
+            ),
             "APIへの接続に失敗しました",
         ),
         (
@@ -211,7 +215,9 @@ def test_summarize_api_fails_on_call(
             "APIレスポンスのJSONデコードに失敗しました",
         ),
         (
-            lambda resp: setattr(resp, "json", MagicMock(return_value={"detail": "wrong key"})),
+            lambda resp: setattr(
+                resp, "json", MagicMock(return_value={"detail": "wrong key"})
+            ),
             "APIレスポンスに'response'キーが含まれていません。",
         ),
     ],
