@@ -56,6 +56,9 @@ ENV PATH="/opt/venv/bin:${PATH}"
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Create a directory for the database and set permissions
+RUN mkdir -p /app/db && chown appuser:appgroup /app/db
+
 # Copy application code with correct permissions
 COPY --chown=appuser:appgroup manage.py .
 COPY --chown=appuser:appgroup apps/ ./apps/
