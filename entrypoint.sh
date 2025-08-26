@@ -6,6 +6,8 @@
 
 # Ensure the virtual environment is on the PATH
 export PATH="/opt/venv/bin:$PATH"
+# Add the project's 'apps' directory to the PYTHONPATH
+export PYTHONPATH="/app:${PYTHONPATH:-}"
 
 set -eu
 
@@ -21,4 +23,4 @@ python manage.py migrate
 
 # Start the main process
 echo "Starting Gunicorn server..."
-exec /opt/venv/bin/gunicorn config.wsgi:application --bind 0.0.0.0:8000
+exec python -m gunicorn config.wsgi:application --bind 0.0.0.0:8000
