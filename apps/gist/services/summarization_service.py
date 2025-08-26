@@ -1,3 +1,5 @@
+from urllib.parse import urljoin
+
 import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -20,7 +22,7 @@ class SummarizationService:
         連携先のLLM APIのヘルスチェックを行う。
         正常でない場合は SummarizationServiceError を送出する。
         """
-        health_check_url = f"{self.api_base_url}/health"
+        health_check_url = urljoin(self.api_base_url.rstrip("/") + "/", "health")
         try:
             response = requests.get(health_check_url, timeout=5)
             if response.status_code != 200:
@@ -31,15 +33,15 @@ class SummarizationService:
             raise SummarizationServiceError(f"Failed to connect to LLM API: {e}") from e
 
     def summarize(self, text: str, max_chars: int | None = None) -> str:
-        if not text:
+        if not text or not text.strip():
             return ""
-
-        self._health_check()
 
         if max_chars is None:
             if not hasattr(settings, "SUMMARY_MAX_CHARS"):
                 raise AttributeError("settings.SUMMARY_MAX_CHARS is not defined.")
             max_chars = settings.SUMMARY_MAX_CHARS
+
+        self._health_check()
 
         truncated_text = text[:max_chars]
         prompt = f"""以下のテキストを日本語で要約してください。
@@ -52,7 +54,7 @@ class SummarizationService:
 要点: 記事の最も重要なポイントを3つを目安として、最大5つまでの箇条書きで簡潔にまとめてください。各箇条書きは100字以内にしてください。
 """
 
-        api_url = f"{self.api_base_url}/api/v1/generate"
+        api_url = urljoin(self.api_base_url.rstrip("/") + "/", "api/v1/generate")
         headers = {"Content-Type": "application/json"}
         payload = {"prompt": prompt, "stream": False}
 

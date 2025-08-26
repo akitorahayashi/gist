@@ -28,9 +28,7 @@ def scrape_page(request):
                 context["error"] = str(e)
             except SummarizationServiceError:
                 # 要約サービス固有のエラー
-                logger.exception(
-                    "Summarization service error for URL: %s", url, exc_info=True
-                )
+                logger.exception("Summarization service error for URL: %s", url)
                 context["error"] = (
                     "要約サービスが現在利用できません。時間をおいて再度お試しください。"
                 )

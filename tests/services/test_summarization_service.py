@@ -66,6 +66,20 @@ class TestSummarizationService:
         mock_post.assert_not_called()
 
     @override_settings(PVT_LLM_API_URL=API_URL)
+    def test_summarize_whitespace_text(self, mock_post, mock_get):
+        # Given: 空白のみのテキスト
+        service = SummarizationService()
+        text = "   \n\t   "
+
+        # When: 要約を実行
+        result = service.summarize(text)
+
+        # Then: 空文字列が返り、ヘルスチェックもAPIも呼ばれない
+        assert result == ""
+        mock_get.assert_not_called()
+        mock_post.assert_not_called()
+
+    @override_settings(PVT_LLM_API_URL=API_URL)
     def test_health_check_unhealthy(self, mock_post, mock_get):
         # Given: ヘルスチェックが異常を返すように設定
         mock_health_response = MagicMock()
@@ -197,15 +211,15 @@ class TestSummarizationService:
         self, mock_post, mock_get, monkeypatch
     ):
         # Given: SUMMARY_MAX_CHARS が settings にない
-        self._mock_health_check_success(mock_get)
         monkeypatch.delattr("django.conf.settings.SUMMARY_MAX_CHARS", raising=False)
 
         service = SummarizationService()
         text = "Some text"
 
         # When: max_chars を指定せずに要約を実行
-        # Then: AttributeError が発生する
+        # Then: AttributeError が発生し、ヘルスチェックは呼ばれない
         with pytest.raises(
             AttributeError, match="settings.SUMMARY_MAX_CHARS is not defined."
         ):
             service.summarize(text)
+        mock_get.assert_not_called()
