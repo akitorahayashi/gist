@@ -13,7 +13,6 @@ PROJECT_NAME := $(shell basename $(CURDIR))
 # Use --env-file to explicitly specify environment configuration, avoiding issues with `sudo` and symlinks.
 DEV_COMPOSE := sudo docker compose --env-file .env.dev --project-name $(PROJECT_NAME)-dev
 PROD_COMPOSE := sudo docker compose -f docker-compose.yml --env-file .env.prod --project-name $(PROJECT_NAME)-prod
-TEST_COMPOSE := sudo docker compose -f docker-compose.yml --env-file .env.test --project-name $(PROJECT_NAME)-test
 
 # Default target to run when make is called without arguments
 .DEFAULT_GOAL := help
@@ -95,48 +94,40 @@ superuser-prod: ## [PROD] Create a Django superuser in the production-like envir
 	@$(PROD_COMPOSE) exec web python manage.py createsuperuser
 
 # --- Code Quality and Testing ---
-.PHONY: test
-test: ## Run the test suite using the .env.test environment
-	@echo "Running test suite with .env.test..."
-	@poetry run pytest
-
 .PHONY: format
-format: ## Format the code using Black and Ruff
-	@echo "Formatting code with Black and Ruff..."
-	poetry run black .
-	poetry run ruff check . --fix
+format: ## Format code using Black and Ruff
+	@echo "Formatting code with Black and ruff..."
+	@poetry run black .
+	@poetry run ruff check . --fix
 
 .PHONY: format-check
-format-check: ## Check if the code is formatted with Black
-	@echo "Checking code format with Black..."
-	poetry run black --check .
+format-check: ## Check code formatting using Black
+	@echo "Checking code formatting with Black..."
+	@poetry run black --check .
 
 .PHONY: lint
-lint: ## Lint the code with Ruff
-	@echo "Linting code with Ruff..."
-	poetry run ruff check .
+lint: ## Lint code using Ruff
+	@echo "Linting code with ruff..."
+	@poetry run ruff check .
 
 .PHONY: lint-check
-lint-check: ## Check the code for issues with Ruff
+lint-check: ## Check code for issues with Ruff
 	@echo "Checking code with Ruff..."
-	poetry run ruff check .
+	@poetry run ruff check .
+
+.PHONY: test
+test: unit-test ## Run all tests (unit)
+
+.PHONY: unit-test
+unit-test: ## Run unit tests
+	@echo "Running unit tests..."
+	@poetry run pytest tests/unit
 
 .PHONY: e2e-test
-e2e-test: ## [E2E] Build, run tests against live containers, and cleanup
-	@echo "Running E2E test..."
-	@trap "echo '--- E2E test cleanup ---'; echo '--- Container logs: ---'; $(TEST_COMPOSE) logs; echo '--- Shutting down containers: ---'; $(TEST_COMPOSE) down -v --remove-orphans" EXIT
-	@$(TEST_COMPOSE) up -d --build
-	@echo "Waiting for services to be ready..."
-	@if ! . ./.env.test && timeout 60s bash -c '\
-		until curl -s -o /dev/null -w "%{http_code}" http://$$HOST_BIND_IP:$$HOST_PORT/ | grep -q 200; \
-		do \
-			echo "Service not ready, retrying in 5 seconds..."; \
-			sleep 5; \
-		done' > /dev/null 2>&1; then \
-		echo "E2E test failed: Service did not become ready in 60 seconds." >&2; \
-		exit 1; \
-	fi
-	@echo "Services are ready. E2E test successful."
+e2e-test: ## Run E2E tests against live containers
+	@echo "Running E2E tests..."
+	@poetry run pytest -m e2e --log-cli-level=INFO tests/e2e
+
 
 # --- Cleanup ---
 .PHONY: clean

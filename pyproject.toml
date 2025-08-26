@@ -25,6 +25,8 @@ ipython = "^9.4.0"
 pytest-django = "^4.11.1"
 pytest = "^8.4.1"
 pytest-mock = "^3.14.0"
+httpx = "^0.27.0"
+docker = "^7.1.0"
 
 [tool.black]
 target-version = ['py312']
@@ -42,6 +44,9 @@ exclude = '''
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = "test_*.py"
 testpaths = ["tests"]
+markers = [
+    "e2e: marks tests as end-to-end tests",
+]
 
 [tool.ruff]
 target-version = "py312"
