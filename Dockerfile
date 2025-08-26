@@ -65,11 +65,8 @@ COPY --chown=appuser:appgroup config/ ./config/
 # Switch to the non-privileged user
 USER appuser
 
-# Ensure venv on PATH for the appuser
-ENV PATH="/opt/venv/bin:${PATH}"
-
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
 
 # Default command (can be overridden)
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["/opt/venv/bin/gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
