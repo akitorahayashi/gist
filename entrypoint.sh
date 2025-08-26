@@ -6,6 +6,12 @@
 
 set -eu
 
+# Collect static files if required
+if [ "${COLLECT_STATIC:-0}" = "1" ]; then
+    echo "Collecting static files..."
+    python manage.py collectstatic --noinput
+fi
+
 # Apply database migrations
 echo "Applying database migrations..."
 python manage.py migrate

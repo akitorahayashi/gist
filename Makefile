@@ -151,4 +151,4 @@ help: ## Show this help message
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Available targets:"
-	@awk 'BEGIN {FS = ":.*?## "; OFS="t"} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-25s\033[0m %sn", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS=":.*?## "; OFS="\t"} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)

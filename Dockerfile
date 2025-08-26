@@ -36,8 +36,13 @@ RUN poetry install --no-root --only main
 
 
 # --- Production Stage ---
-# Final image for production
-FROM base as production
+# Final image for production (without Poetry)
+FROM python:3.12-slim as production
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
 
 # Create a non-privileged user
 RUN addgroup --system appgroup && \
@@ -51,14 +56,10 @@ ENV PATH="/opt/venv/bin:${PATH}"
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Copy application code first
-COPY manage.py .
-COPY apps/ ./apps/
-COPY config/ ./config/
-
-# Collect static files and set permissions
-RUN python manage.py collectstatic --noinput && \
-    chown -R appuser:appgroup /app
+# Copy application code with correct permissions
+COPY --chown=appuser:appgroup manage.py .
+COPY --chown=appuser:appgroup apps/ ./apps/
+COPY --chown=appuser:appgroup config/ ./config/
 
 # Switch to the non-privileged user
 USER appuser

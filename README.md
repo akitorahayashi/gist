@@ -108,11 +108,13 @@ make format-check
 | `make up-prod`        | 本番環境用のDockerコンテナをビルドして起動します。                   |
 | `make down-prod`      | 本番環境用のDockerコンテナを停止・削除します。                       |
 | `make migrate`        | 開発環境でデータベースのマイグレーションを実行します。               |
+| `make makemigrations` | 新しいマイグレーションファイルを作成します。                         |
 | `make superuser`      | 開発環境でDjangoのスーパーユーザーを作成します。                     |
 | `make migrate-prod`   | 本番環境でデータベースのマイグレーションを実行します。               |
 | `make superuser-prod` | 本番環境でDjangoのスーパーユーザーを作成します。                     |
 | `make test`           | `web`コンテナ内でテストスイートを実行します。                        |
 | `make format`         | `black` と `ruff` を使ってコードをフォーマットします。               |
+| `make lint`           | `ruff` を使ってコードをリントします。                                |
 | `make lint-check`     | `ruff` でリントエラーがないかチェックします。                        |
 | `make clean`          | すべてのコンテナを停止し、生成されたファイルをクリーンアップします。 |
 | `make help`           | 利用可能なすべてのコマンドのリストと説明を表示します。               |
