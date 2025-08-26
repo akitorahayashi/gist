@@ -1,8 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
 # このスクリプトは、コンテナのCMDとして渡されたコマンドを実行します。
 # exec "$@" を使用することで、渡されたコマンドがコンテナのPID 1として実行され、
 # シグナル（例: docker stopからのSIGTERM）を正しく受信できるようになります。
+
+# Ensure the virtual environment is on the PATH
+export PATH="/opt/venv/bin:$PATH"
 
 set -eu
 
