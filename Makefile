@@ -23,14 +23,12 @@ PROD_COMPOSE := sudo docker compose -f docker-compose.yml --project-name $(PROJE
 setup: ## Install dependencies and create .env files from .env.example
 	@echo "Installing python dependencies with Poetry..."
 	@poetry install
-	@if [ ! -f .env.dev ]; then \
-		echo "Creating .env.dev from .env.example..."; \
-		cp .env.example .env.dev; \
-	fi
-	@if [ ! -f .env.prod ]; then \
-		echo "Creating .env.prod from .env.example..."; \
-		cp .env.example .env.prod; \
-	fi
+	@for env in dev prod test; do \
+		if [ ! -f .env.$$env ]; then \
+			echo "Creating .env.$$env from .env.example..."; \
+			cp .env.example .env.$$env; \
+		fi; \
+	done
 	@echo "Setup complete. Dependencies are installed and .env files are ready."
 
 # --- Development Environment Commands ---
@@ -110,9 +108,9 @@ superuser-prod: ## [PROD] Create a Django superuser in the production-like envir
 
 # --- Code Quality and Testing ---
 .PHONY: test
-test: ## Run the test suite using the host's poetry environment
-	@ln -sf .env.dev .env
-	@echo "Running test suite on host..."
+test: ## Run the test suite using the .env.test environment
+	@ln -sf .env.test .env
+	@echo "Running test suite with .env.test..."
 	poetry run pytest
 
 .PHONY: format
