@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install poetry
-RUN pip install --no-cache-dir poetry==1.8.3 \
+RUN pip install --no-cache-dir --disable-pip-version-check poetry==1.8.3 \
     && poetry config virtualenvs.in-project true
 
 # --- Builder Stage ---
@@ -36,8 +36,13 @@ RUN poetry install --no-root --only main
 
 
 # --- Production Stage ---
-# Final image for production
-FROM base as production
+# Final image for production (without Poetry)
+FROM python:3.12-slim as production
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
 
 # Create a non-privileged user
 RUN addgroup --system appgroup && \
@@ -51,11 +56,13 @@ ENV PATH="/opt/venv/bin:${PATH}"
 COPY ./entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Copy application code with correct permissions
+COPY --chown=appuser:appgroup manage.py .
+COPY --chown=appuser:appgroup apps/ ./apps/
+COPY --chown=appuser:appgroup config/ ./config/
+
 # Switch to the non-privileged user
 USER appuser
-
-# Copy application code
-COPY . .
 
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
