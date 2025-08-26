@@ -55,7 +55,9 @@ RUN chmod +x /entrypoint.sh
 USER appuser
 
 # Copy application code
-COPY --chown=appuser:appgroup . .
+COPY --chown=appuser:appgroup apps/ ./apps/
+COPY --chown=appuser:appgroup config/ ./config/
+COPY --chown=appuser:appgroup manage.py .
 
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
