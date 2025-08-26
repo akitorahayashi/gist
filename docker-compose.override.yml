@@ -12,3 +12,7 @@ services:
       - .:/app
       - venv:/app/.venv
     command: bash -c 'poetry install --no-root && poetry run python manage.py runserver 0.0.0.0:8000'
+
+volumes:
+  venv:
+  static_volume:

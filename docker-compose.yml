@@ -16,7 +16,7 @@ services:
     build:
       context: ./nginx
     ports:
-      - "80:80"
+      - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-50080}:80"
     volumes:
       - static_volume:/app/static
     depends_on:
