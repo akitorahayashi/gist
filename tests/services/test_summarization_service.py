@@ -11,14 +11,22 @@ from apps.gist.services.summarization_service import (
 )
 
 
+@patch("apps.gist.services.summarization_service.requests.get")
 @patch("apps.gist.services.summarization_service.requests.post")
 class TestSummarizationService:
     API_URL = "http://llm-api:8000"
+    HEALTH_ENDPOINT = f"{API_URL}/health"
     ENDPOINT = f"{API_URL}/api/v1/generate"
 
+    def _mock_health_check_success(self, mock_get):
+        mock_health_response = MagicMock()
+        mock_health_response.status_code = 200
+        mock_get.return_value = mock_health_response
+
     @override_settings(PVT_LLM_API_URL=API_URL)
-    def test_summarize_success(self, mock_post):
-        # Given: APIのモックを設定
+    def test_summarize_success(self, mock_post, mock_get):
+        # Given: ヘルスチェックとAPIのモックを設定
+        self._mock_health_check_success(mock_get)
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -32,8 +40,9 @@ class TestSummarizationService:
         # When: 要約を実行
         result = service.summarize(text)
 
-        # Then: 要約結果が返り、APIが正しく呼ばれる
+        # Then: 要約結果が返り、ヘルスチェックとAPIが正しく呼ばれる
         assert result == "タイトル: テスト\n要点:\n- テストです"
+        mock_get.assert_called_once_with(self.HEALTH_ENDPOINT, timeout=5)
         mock_post.assert_called_once()
         # 呼び出し引数を検証
         args, kwargs = mock_post.call_args
@@ -43,7 +52,7 @@ class TestSummarizationService:
         assert kwargs["json"]["stream"] is False
 
     @override_settings(PVT_LLM_API_URL=API_URL)
-    def test_summarize_empty_text(self, mock_post):
+    def test_summarize_empty_text(self, mock_post, mock_get):
         # Given: 空のテキスト
         service = SummarizationService()
         text = ""
@@ -51,13 +60,45 @@ class TestSummarizationService:
         # When: 要約を実行
         result = service.summarize(text)
 
-        # Then: 空文字列が返り、APIは呼ばれない
+        # Then: 空文字列が返り、ヘルスチェックもAPIも呼ばれない
         assert result == ""
+        mock_get.assert_not_called()
+        mock_post.assert_not_called()
+
+    @override_settings(PVT_LLM_API_URL=API_URL)
+    def test_health_check_unhealthy(self, mock_post, mock_get):
+        # Given: ヘルスチェックが異常を返すように設定
+        mock_health_response = MagicMock()
+        mock_health_response.status_code = 503
+        mock_get.return_value = mock_health_response
+
+        service = SummarizationService()
+        # Then: SummarizationServiceErrorが発生する
+        with pytest.raises(SummarizationServiceError, match="LLM API is unhealthy"):
+            # When: 要約を実行
+            service.summarize("test text")
+        # Then: 要約APIは呼ばれない
+        mock_post.assert_not_called()
+
+    @override_settings(PVT_LLM_API_URL=API_URL)
+    def test_health_check_network_error(self, mock_post, mock_get):
+        # Given: ヘルスチェックでネットワークエラーが発生
+        mock_get.side_effect = requests.exceptions.Timeout("Connection timed out")
+
+        service = SummarizationService()
+        # Then: SummarizationServiceErrorが発生する
+        with pytest.raises(
+            SummarizationServiceError, match="Failed to connect to LLM API"
+        ):
+            # When: 要約を実行
+            service.summarize("test text")
+        # Then: 要約APIは呼ばれない
         mock_post.assert_not_called()
 
     @override_settings(PVT_LLM_API_URL=API_URL, SUMMARY_MAX_CHARS=10)
-    def test_summarize_truncates_text(self, mock_post):
-        # Given: APIのモックと文字数制限
+    def test_summarize_truncates_text(self, mock_post, mock_get):
+        # Given: ヘルスチェックとAPIのモック、文字数制限
+        self._mock_health_check_success(mock_get)
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"response": "truncated summary"}
@@ -76,8 +117,9 @@ class TestSummarizationService:
         assert truncated == "This is a "
 
     @override_settings(PVT_LLM_API_URL=API_URL)
-    def test_api_http_error(self, mock_post):
-        # Given: APIがエラーを返すように設定
+    def test_api_http_error(self, mock_post, mock_get):
+        # Given: ヘルスチェックは成功、APIがエラーを返す
+        self._mock_health_check_success(mock_get)
         mock_response = MagicMock()
         mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
             "404 Not Found"
@@ -93,8 +135,9 @@ class TestSummarizationService:
             service.summarize("test text")
 
     @override_settings(PVT_LLM_API_URL=API_URL)
-    def test_api_network_error(self, mock_post):
-        # Given: APIがネットワークエラーを発生させるように設定
+    def test_api_network_error(self, mock_post, mock_get):
+        # Given: ヘルスチェックは成功、APIがネットワークエラー
+        self._mock_health_check_success(mock_get)
         mock_post.side_effect = requests.exceptions.Timeout("Connection timed out")
 
         service = SummarizationService()
@@ -106,8 +149,9 @@ class TestSummarizationService:
             service.summarize("test text")
 
     @override_settings(PVT_LLM_API_URL=API_URL)
-    def test_api_invalid_json_response(self, mock_post):
-        # Given: APIが不正なJSONを返すように設定
+    def test_api_invalid_json_response(self, mock_post, mock_get):
+        # Given: ヘルスチェックは成功、APIが不正なJSONを返す
+        self._mock_health_check_success(mock_get)
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.side_effect = ValueError("Decoding failed")
@@ -122,8 +166,9 @@ class TestSummarizationService:
             service.summarize("test text")
 
     @override_settings(PVT_LLM_API_URL=API_URL)
-    def test_api_missing_response_key(self, mock_post):
-        # Given: APIのレスポンスに必要なキーがない
+    def test_api_missing_response_key(self, mock_post, mock_get):
+        # Given: ヘルスチェックは成功、APIのレスポンスに必要なキーがない
+        self._mock_health_check_success(mock_get)
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"detail": "Something went wrong"}
@@ -139,7 +184,7 @@ class TestSummarizationService:
             service.summarize("test text")
 
     @override_settings(PVT_LLM_API_URL=None)
-    def test_init_missing_settings(self, mock_post):
+    def test_init_missing_settings(self, mock_post, mock_get):
         # When: 設定が不足している状態で初期化
         # Then: ImproperlyConfigured が発生する
         with pytest.raises(
@@ -148,8 +193,11 @@ class TestSummarizationService:
             SummarizationService()
 
     @override_settings(PVT_LLM_API_URL=API_URL)
-    def test_summarize_missing_max_chars_setting(self, mock_post, monkeypatch):
+    def test_summarize_missing_max_chars_setting(
+        self, mock_post, mock_get, monkeypatch
+    ):
         # Given: SUMMARY_MAX_CHARS が settings にない
+        self._mock_health_check_success(mock_get)
         monkeypatch.delattr("django.conf.settings.SUMMARY_MAX_CHARS", raising=False)
 
         service = SummarizationService()

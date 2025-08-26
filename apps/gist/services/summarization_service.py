@@ -15,9 +15,27 @@ class SummarizationService:
             raise ImproperlyConfigured("PVT_LLM_API_URL is not configured.")
         self.api_base_url = settings.PVT_LLM_API_URL
 
+    def _health_check(self):
+        """
+        連携先のLLM APIのヘルスチェックを行う。
+        正常でない場合は SummarizationServiceError を送出する。
+        """
+        health_check_url = f"{self.api_base_url}/health"
+        try:
+            response = requests.get(health_check_url, timeout=5)
+            if response.status_code != 200:
+                raise SummarizationServiceError(
+                    f"LLM API is unhealthy. Status: {response.status_code}"
+                )
+        except requests.exceptions.RequestException as e:
+            raise SummarizationServiceError(f"Failed to connect to LLM API: {e}") from e
+
     def summarize(self, text: str, max_chars: int | None = None) -> str:
         if not text:
             return ""
+
+        self._health_check()
+
         if max_chars is None:
             if not hasattr(settings, "SUMMARY_MAX_CHARS"):
                 raise AttributeError("settings.SUMMARY_MAX_CHARS is not defined.")
