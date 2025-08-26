@@ -37,10 +37,20 @@ def mock_post(mocker):
 
 
 @pytest.fixture
-def summarization_service():
-    """Fixture to provide an instance of SummarizationService."""
-    with override_settings(PVT_LLM_API_URL=API_URL):
+def summarization_service_factory():
+    """Factory fixture that instantiates service under current settings context."""
+
+    def _factory():
         return SummarizationService()
+
+    return _factory
+
+
+@pytest.fixture
+def summarization_service(summarization_service_factory):
+    """Fixture to provide a service instance with default settings."""
+    with override_settings(PVT_LLM_API_URL=API_URL):
+        yield summarization_service_factory()
 
 
 @pytest.fixture
@@ -60,10 +70,12 @@ def mock_health_check_success(mock_get):
     "base_url",
     [API_URL, f"{API_URL}/"],
 )
-def test_summarize_success(mock_health_check_success, mock_post, base_url):
+def test_summarize_success(
+    summarization_service_factory, mock_health_check_success, mock_post, base_url
+):
     # Given
-    with override_settings(PVT_LLM_API_URL=base_url):
-        service = SummarizationService()
+    with override_settings(PVT_LLM_API_URL=base_url, SUMMARY_MAX_CHARS=1000):
+        service = summarization_service_factory()
         expected_summary = "タイトル: テスト\n要点:\n- テストです"
         mock_api_response = MagicMock(spec=requests.Response)
         mock_api_response.status_code = 200
@@ -92,6 +104,11 @@ def test_summarize_success(mock_health_check_success, mock_post, base_url):
             SUMMARIZE_CONNECT_TIMEOUT,
             SUMMARIZE_READ_TIMEOUT,
         )
+        assert call_kwargs["headers"] == {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        assert call_kwargs["json"]["stream"] is False
         assert "prompt" in call_kwargs["json"]
 
 
@@ -112,9 +129,7 @@ def test_summarize_empty_or_whitespace_input(
     "side_effect, error_message_match",
     [
         (
-            MagicMock(
-                spec=requests.Response, status_code=503, ok=False, text="Server Error"
-            ),
+            503,
             "LLM API is unhealthy. Status: 503, Body: Server Error",
         ),
         (requests.exceptions.Timeout("Connection timed out"), "Failed to connect"),
@@ -124,10 +139,15 @@ def test_health_check_fails(
     summarization_service, mock_get, mock_post, side_effect, error_message_match
 ):
     # Given
-    if isinstance(side_effect, Exception):
-        mock_get.side_effect = side_effect
+    if isinstance(side_effect, int):
+        mock_get.return_value = MagicMock(
+            spec=requests.Response,
+            status_code=side_effect,
+            ok=False,
+            text="Server Error",
+        )
     else:
-        mock_get.return_value = side_effect
+        mock_get.side_effect = side_effect
 
     # When & Then
     with pytest.raises(SummarizationServiceError, match=error_message_match):
@@ -159,6 +179,7 @@ def test_summarize_truncates_text(
     prompt = payload["prompt"]
     truncated = prompt.split("テキスト:\n", 1)[1].split("\n\n要約は", 1)[0]
     assert truncated == text[:max_chars]
+    mock_health_check_success.assert_called_once()
 
 
 def test_summarize_with_max_chars_arg(
@@ -180,6 +201,7 @@ def test_summarize_with_max_chars_arg(
     prompt = payload["prompt"]
     truncated = prompt.split("テキスト:\n", 1)[1].split("\n\n要約は", 1)[0]
     assert truncated == text[:max_chars_arg]
+    mock_health_check_success.assert_called_once()
 
 
 @pytest.mark.parametrize(
