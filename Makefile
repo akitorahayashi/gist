@@ -95,10 +95,21 @@ superuser-prod: ## [PROD] Create a Django superuser in the production-like envir
 	@$(PROD_COMPOSE) exec web python manage.py createsuperuser
 
 # --- Code Quality and Testing ---
+# Define VENV_PATH to ensure we use the correct python/pytest executable, avoiding `poetry run` issues.
+VENV_PATH := $(shell poetry env info --path)
+
 .PHONY: test
-test: ## Run the test suite using the .env.test environment
-	@echo "Running test suite with .env.test..."
-	@poetry run pytest
+test: unit-test e2e-test ## Run both unit and E2E tests
+
+.PHONY: unit-test
+unit-test: ## Run unit tests
+	@echo "Running unit tests..."
+	@$(VENV_PATH)/bin/pytest tests/unit
+
+.PHONY: e2e-test
+e2e-test: ## Run E2E tests
+	@echo "Running E2E tests..."
+	@$(VENV_PATH)/bin/pytest tests/e2e
 
 .PHONY: format
 format: ## Format the code using Black and Ruff
@@ -120,23 +131,6 @@ lint: ## Lint the code with Ruff
 lint-check: ## Check the code for issues with Ruff
 	@echo "Checking code with Ruff..."
 	poetry run ruff check .
-
-.PHONY: e2e-test
-e2e-test: ## [E2E] Build, run tests against live containers, and cleanup
-	@echo "Running E2E test..."
-	@trap "echo '--- E2E test cleanup ---'; echo '--- Container logs: ---'; $(TEST_COMPOSE) logs; echo '--- Shutting down containers: ---'; $(TEST_COMPOSE) down -v --remove-orphans" EXIT
-	@$(TEST_COMPOSE) up -d --build
-	@echo "Waiting for services to be ready..."
-	@if ! . ./.env.test && timeout 60s bash -c '\
-		until curl -s -o /dev/null -w "%{http_code}" http://$$HOST_BIND_IP:$$HOST_PORT/ | grep -q 200; \
-		do \
-			echo "Service not ready, retrying in 5 seconds..."; \
-			sleep 5; \
-		done' > /dev/null 2>&1; then \
-		echo "E2E test failed: Service did not become ready in 60 seconds." >&2; \
-		exit 1; \
-	fi
-	@echo "Services are ready. E2E test successful."
 
 # --- Cleanup ---
 .PHONY: clean

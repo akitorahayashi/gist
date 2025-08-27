@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install poetry
-RUN pip install --no-cache-dir --disable-pip-version-check poetry==1.8.3 \
+RUN pip install --no-cache-dir --disable-pip-version-check poetry \
     && poetry config virtualenvs.in-project true
 
 # --- Builder Stage ---
@@ -60,6 +60,10 @@ RUN chmod +x /entrypoint.sh
 COPY --chown=appuser:appgroup manage.py .
 COPY --chown=appuser:appgroup apps/ ./apps/
 COPY --chown=appuser:appgroup config/ ./config/
+
+# Grant ownership of the app directory to the appuser
+# This allows the user to create files like the SQLite database
+RUN chown appuser:appgroup /app
 
 # Switch to the non-privileged user
 USER appuser
