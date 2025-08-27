@@ -6,8 +6,6 @@
 
 # Ensure the virtual environment is on the PATH
 export PATH="/opt/venv/bin:$PATH"
-# Add the project's 'apps' directory to the PYTHONPATH
-export PYTHONPATH="/app:${PYTHONPATH:-}"
 
 set -eu
 

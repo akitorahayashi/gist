@@ -2,7 +2,7 @@ import logging
 
 from django.shortcuts import render
 
-from gist.services import (
+from .services import (
     ScrapingService,
     SummarizationService,
     SummarizationServiceError,
