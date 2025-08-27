@@ -36,6 +36,17 @@ def e2e_setup() -> Generator[None, None, None]:
     ]
     subprocess.run(compose_up_command, check=True)
 
+    # Teardown command to be used both on success and failure
+    compose_down_command = [
+        "sudo",
+        "docker",
+        "compose",
+        "--project-name",
+        "gist-test",
+        "down",
+        "--remove-orphans",
+    ]
+
     # Health Check
     start_time = time.time()
     timeout = 120
@@ -63,19 +74,13 @@ def e2e_setup() -> Generator[None, None, None]:
             "web",
         ]
         subprocess.run(log_command)
+        # Ensure teardown on failure to avoid lingering containers
+        print("\n🛑 Stopping E2E services due to health check failure...")
+        subprocess.run(compose_down_command, check=True)
         pytest.fail(f"Application did not become healthy within {timeout} seconds.")
 
     yield
 
     # Stop services
     print("\n🛑 Stopping E2E services...")
-    compose_down_command = [
-        "sudo",
-        "docker",
-        "compose",
-        "--project-name",
-        "gist-test",
-        "down",
-        "--remove-orphans",
-    ]
     subprocess.run(compose_down_command, check=True)
