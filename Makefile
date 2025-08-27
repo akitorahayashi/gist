@@ -9,11 +9,24 @@
 # Project name, derived from the current directory name
 PROJECT_NAME := $(shell basename $(CURDIR))
 
+# ==============================================================================
+# Sudo Configuration
+#
+# Allows running Docker commands with sudo when needed (e.g., in CI environments).
+# Usage: make up SUDO=true
+# ==============================================================================
+SUDO_PREFIX :=
+ifeq ($(SUDO),true)
+	SUDO_PREFIX := sudo
+endif
+
+DOCKER_CMD := $(SUDO_PREFIX) docker
+
 # Docker Compose command wrappers
-# Use --env-file to explicitly specify environment configuration, avoiding issues with `sudo` and symlinks.
-DEV_COMPOSE := sudo docker compose --env-file .env.dev --project-name $(PROJECT_NAME)-dev
-PROD_COMPOSE := sudo docker compose -f docker-compose.yml --env-file .env.prod --project-name $(PROJECT_NAME)-prod
-TEST_COMPOSE := sudo docker compose -f docker-compose.yml --env-file .env.test --project-name $(PROJECT_NAME)-test
+# Use --env-file to explicitly specify environment configuration.
+DEV_COMPOSE := $(DOCKER_CMD) compose --env-file .env.dev --project-name $(PROJECT_NAME)-dev
+PROD_COMPOSE := $(DOCKER_CMD) compose -f docker-compose.yml --env-file .env.prod --project-name $(PROJECT_NAME)-prod
+TEST_COMPOSE := $(DOCKER_CMD) compose -f docker-compose.yml --env-file .env.test --project-name $(PROJECT_NAME)-test
 
 # Default target to run when make is called without arguments
 .DEFAULT_GOAL := help
@@ -95,7 +108,7 @@ superuser-prod: ## [PROD] Create a Django superuser in the production-like envir
 	@$(PROD_COMPOSE) exec web python manage.py createsuperuser
 
 # --- Code Quality and Testing ---
-# Define VENV_PATH to ensure we use the correct python/pytest executable, avoiding `poetry run` issues.
+# Define VENV_PATH to ensure we use the correct python/pytest executable.
 VENV_PATH := $(shell poetry env info --path)
 
 .PHONY: test
@@ -143,7 +156,10 @@ clean: ## Remove all generated files and stop all containers
 # --- Help ---
 .PHONY: help
 help: ## Show this help message
-	@echo "Usage: make [target]"
+	@echo "Usage: make [target] [VAR=value]"
+	@echo ""
+	@echo "Options:"
+	@echo "  \033[36m%-25s\033[0m %s" "SUDO=true" "Run docker commands with sudo (e.g., make up SUDO=true)"
 	@echo ""
 	@echo "Available targets:"
 	@awk 'BEGIN {FS=":.*?## "; OFS="\t"} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)

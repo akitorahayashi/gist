@@ -18,11 +18,14 @@ def e2e_setup() -> Generator[None, None, None]:
     host_port = os.getenv("HOST_PORT", "8000")
     health_url = f"http://localhost:{host_port}/"
 
+    # Determine if sudo should be used based on environment variable
+    # This allows `SUDO=true make e2e-test` to work as expected.
+    use_sudo = os.getenv("SUDO") == "true"
+    docker_command = ["sudo", "docker"] if use_sudo else ["docker"]
+
     # Start services using docker-compose
     print("\n🚀 Starting E2E services...")
-    compose_up_command = [
-        "sudo",
-        "docker",
+    compose_up_command = docker_command + [
         "compose",
         "-f",
         "docker-compose.yml",
@@ -37,9 +40,7 @@ def e2e_setup() -> Generator[None, None, None]:
     subprocess.run(compose_up_command, check=True)
 
     # Teardown command to be used both on success and failure
-    compose_down_command = [
-        "sudo",
-        "docker",
+    compose_down_command = docker_command + [
         "compose",
         "--project-name",
         "gist-test",
@@ -64,9 +65,7 @@ def e2e_setup() -> Generator[None, None, None]:
             time.sleep(5)
 
     if not is_healthy:
-        log_command = [
-            "sudo",
-            "docker",
+        log_command = docker_command + [
             "compose",
             "--project-name",
             "gist-test",
