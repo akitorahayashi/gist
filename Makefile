@@ -25,8 +25,8 @@ DOCKER_CMD := $(SUDO_PREFIX) docker
 # Docker Compose command wrappers
 # Use --env-file to explicitly specify environment configuration.
 DEV_COMPOSE := $(DOCKER_CMD) compose --env-file .env.dev --project-name $(PROJECT_NAME)-dev
-PROD_COMPOSE := $(DOCKER_CMD) compose -f docker-compose.yml --env-file .env.prod --project-name $(PROJECT_NAME)-prod
-TEST_COMPOSE := $(DOCKER_CMD) compose -f docker-compose.yml --env-file .env.test --project-name $(PROJECT_NAME)-test
+PROD_COMPOSE := $(DOCKER_CMD) compose -f docker-compose.yml --override-file /dev/null --env-file .env.prod --project-name $(PROJECT_NAME)-prod
+TEST_COMPOSE := $(DOCKER_CMD) compose -f docker-compose.yml --override-file /dev/null --env-file .env.test --project-name $(PROJECT_NAME)-test
 
 # Default target to run when make is called without arguments
 .DEFAULT_GOAL := help
@@ -81,6 +81,17 @@ up-prod: ## Build images and start production-like containers
 down-prod: ## Stop and remove production-like containers
 	@echo "Shutting down PRODUCTION-like containers..."
 	@$(PROD_COMPOSE) down --remove-orphans
+
+# --- Test Environment Commands ---
+.PHONY: up-test
+up-test: ## Build images and start test containers
+	@echo "Starting up TEST containers..."
+	@$(TEST_COMPOSE) up -d --build
+
+.PHONY: down-test
+down-test: ## Stop and remove test containers
+	@echo "Shutting down TEST containers..."
+	@$(TEST_COMPOSE) down --remove-orphans
 
 # --- Database and Application Commands ---
 .PHONY: migrate
