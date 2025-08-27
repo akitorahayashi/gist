@@ -15,4 +15,4 @@ services:
 
 volumes:
   venv:
-  static_volume:
+  static-volume:
