@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
@@ -27,7 +27,7 @@ class TestSummarizationService(TestCase):
 
         # When
         service = SummarizationService()
-        service.client = mock_client
+        service.llm_client = mock_client
         result = service.summarize(text)
 
         # Then
@@ -51,7 +51,7 @@ class TestSummarizationService(TestCase):
 
         # When & Then
         service = SummarizationService()
-        service.client = mock_client
+        service.llm_client = mock_client
         with self.assertRaises(SummarizationServiceError) as context:
             service.summarize(text)
 
@@ -71,7 +71,7 @@ class TestSummarizationService(TestCase):
 
         # When
         service = SummarizationService()
-        service.client = mock_client
+        service.llm_client = mock_client
         result = service.summarize(text)
 
         # Then
@@ -101,7 +101,7 @@ class TestSummarizationService(TestCase):
 
         # When
         service = SummarizationService()
-        service.client = mock_client
+        service.llm_client = mock_client
         result_empty = service.summarize("")
         result_whitespace = service.summarize("   \n\t   ")
 

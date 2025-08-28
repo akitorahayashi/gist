@@ -15,7 +15,9 @@ class LlmApiClient:
     def __init__(self):
         self.api_url = settings.LLM_API_ENDPOINT
         if not self.api_url:
-            raise ImproperlyConfigured("LLM_API_ENDPOINT is not configured in settings.")
+            raise ImproperlyConfigured(
+                "LLM_API_ENDPOINT is not configured in settings."
+            )
         self.generate_endpoint = f"{self.api_url}/api/v1/generate"
 
     def generate(self, prompt: str, model: str) -> str:

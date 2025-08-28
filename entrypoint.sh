@@ -4,10 +4,10 @@
 # exec "$@" を使用することで、渡されたコマンドがコンテナのPID 1として実行され、
 # シグナル（例: docker stopからのSIGTERM）を正しく受信できるようになります。
 
-# Ensure the virtual environment is on the PATH
-export PATH="/app/.venv/bin:$PATH"
-
 set -eu
+
+# Activate the virtual environment.
+. /app/.venv/bin/activate
 
 # Collect static files if required
 if [ "${COLLECT_STATIC:-0}" = "1" ]; then
