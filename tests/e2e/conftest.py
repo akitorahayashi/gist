@@ -54,7 +54,7 @@ def e2e_setup() -> Generator[None, None, None]:
     print(f"Polling health check at {health_url}...")
     while time.time() - start_time < timeout:
         try:
-            response = httpx.get(health_url, timeout=5)
+            response = httpx.get(health_url, timeout=5, verify=False)
             if response.status_code == 200:
                 print("✅ Application is healthy!")
                 is_healthy = True

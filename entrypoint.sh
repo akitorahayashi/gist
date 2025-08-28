@@ -5,7 +5,7 @@
 # シグナル（例: docker stopからのSIGTERM）を正しく受信できるようになります。
 
 # Ensure the virtual environment is on the PATH
-export PATH="/opt/venv/bin:$PATH"
+export PATH="/app/.venv/bin:$PATH"
 
 set -eu
 
