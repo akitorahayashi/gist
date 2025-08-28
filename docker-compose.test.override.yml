@@ -9,7 +9,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
-      - /app/.venv  # Prevent host .venv from being mounted
+      - /app/.venv # Prevent host .venv from being mounted
     environment:
       - LLM_API_ENDPOINT=${LLM_API_ENDPOINT:-http://host.docker.internal:8080}
       - SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-qwen3:0.6b}
@@ -17,10 +17,6 @@ services:
     command: bash -c 'poetry install --no-root && poetry run python manage.py runserver 0.0.0.0:8000'
 
   nginx:
-    environment:
-      - HOST_BIND_IP=${HOST_BIND_IP:-127.0.0.1}
-      - HOST_PORT=${HOST_PORT:-8000}
-    env_file: [] # Override base env_file to prevent .env loading
     ports:
       - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-8000}:80"
 

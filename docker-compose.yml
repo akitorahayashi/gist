@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
       target: runner
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - GUNICORN_BIND=0.0.0.0:8000
       - LLM_API_ENDPOINT=${LLM_API_ENDPOINT:-http://host.docker.internal:8080}
@@ -20,11 +22,6 @@ services:
   nginx:
     build:
       context: ./nginx
-    environment:
-      - HOST_BIND_IP=${HOST_BIND_IP:-127.0.0.1}
-      - HOST_PORT=${HOST_PORT:-8000}
-    env_file:
-      - .env
     ports:
       - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-8000}:80"
     depends_on:
