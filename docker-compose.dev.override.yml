@@ -8,6 +8,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - .:/app
+      - /app/.venv  # Prevent host .venv from being mounted
     env_file: [] # Override base env_file to prevent .env loading
     environment:
       - LLM_API_ENDPOINT=${LLM_API_ENDPOINT:-http://host.docker.internal:8080}
