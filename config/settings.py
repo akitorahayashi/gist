@@ -27,10 +27,14 @@ if env_path.is_file():
 
 # 環境変数からすべてのカスタム設定を読み込む
 PVT_LLM_API_URL = os.getenv("PVT_LLM_API_URL", "").strip() or None
+SUMMARIZATION_MODEL = os.getenv("SUMMARIZATION_MODEL", "gemma:2b").strip()
 _summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "600")
 
 
 # 読み込んだ設定値を検証
+if not SUMMARIZATION_MODEL:
+    raise ImproperlyConfigured("SUMMARIZATION_MODEL cannot be empty.")
+
 if PVT_LLM_API_URL:
     _parsed_url = urlparse(PVT_LLM_API_URL)
     if _parsed_url.scheme not in ("http", "https"):

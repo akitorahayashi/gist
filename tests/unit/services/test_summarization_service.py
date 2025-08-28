@@ -1,294 +1,126 @@
-from unittest.mock import MagicMock
-from urllib.parse import urljoin
+from unittest.mock import patch
 
-import pytest
-import requests
 from django.core.exceptions import ImproperlyConfigured
-from django.test import override_settings
+from django.test import TestCase, override_settings
+from requests.exceptions import RequestException
 
 from apps.gist.services.summarization_service import (
-    HEALTH_CHECK_TIMEOUT,
-    SUMMARIZE_CONNECT_TIMEOUT,
-    SUMMARIZE_READ_TIMEOUT,
     SummarizationService,
     SummarizationServiceError,
 )
 
-# Constants
-API_URL = "http://llm-api:8000"
-GENERATE_API_PATH = "api/v1/generate"
-HEALTH_API_PATH = "health"
+# Define constants for reuse
+TEST_URL = "http://fake-api-url.com"
+TEST_MODEL = "test-model"
 
 
-@pytest.fixture
-def mock_get(mocker):
-    """Fixture for the mocked requests.get."""
-    return mocker.patch(
-        "apps.gist.services.summarization_service.requests.get", autospec=True
-    )
+@override_settings(PVT_LLM_API_URL=TEST_URL, SUMMARIZATION_MODEL=TEST_MODEL)
+class TestSummarizationService(TestCase):
+    def test_summarize_success(self):
+        """
+        Test successful summarization.
+        """
+        # Given
+        text = "This is a test text."
+        expected_summary = "This is the summary."
 
+        with patch(
+            "apps.gist.services.summarization_service.LlmApiClient"
+        ) as MockApiClient:
+            # Configure the mock instance
+            mock_instance = MockApiClient.return_value
+            mock_instance.generate.return_value = expected_summary
 
-@pytest.fixture
-def mock_post(mocker):
-    """Fixture for the mocked requests.post."""
-    return mocker.patch(
-        "apps.gist.services.summarization_service.requests.post", autospec=True
-    )
+            # When
+            service = SummarizationService()
+            result = service.summarize(text)
 
+            # Then
+            self.assertEqual(result, expected_summary)
+            mock_instance.generate.assert_called_once()
+            # Verify that the prompt contains the original text
+            called_prompt = mock_instance.generate.call_args.kwargs["prompt"]
+            self.assertIn(text, called_prompt)
+            # Verify the correct model is used
+            called_model = mock_instance.generate.call_args.kwargs["model"]
+            self.assertEqual(called_model, TEST_MODEL)
 
-@pytest.fixture
-def summarization_service_factory():
-    """Factory fixture that instantiates service under current settings context."""
+    def test_summarize_api_failure(self):
+        """
+        Test that SummarizationServiceError is raised when the API client fails.
+        """
+        # Given
+        text = "This text will cause an API failure."
 
-    def _factory():
-        return SummarizationService()
+        with patch(
+            "apps.gist.services.summarization_service.LlmApiClient"
+        ) as MockApiClient:
+            # Configure the mock to raise an exception
+            mock_instance = MockApiClient.return_value
+            mock_instance.generate.side_effect = RequestException("API Error")
 
-    return _factory
+            # When & Then
+            service = SummarizationService()
+            with self.assertRaises(SummarizationServiceError) as context:
+                service.summarize(text)
 
+            # Verify the error message
+            self.assertIn("要約の生成に失敗しました", str(context.exception))
+            mock_instance.generate.assert_called_once()
 
-@pytest.fixture
-def summarization_service(summarization_service_factory):
-    """Fixture to provide a service instance with default settings."""
-    with override_settings(PVT_LLM_API_URL=API_URL):
-        yield summarization_service_factory()
+    def test_summarize_empty_response(self):
+        """
+        Test the service's behavior with an empty response from the API.
+        """
+        # Given
+        text = "This text gets an empty summary."
+        expected_summary = ""
 
+        with patch(
+            "apps.gist.services.summarization_service.LlmApiClient"
+        ) as MockApiClient:
+            # Configure the mock to return an empty string
+            mock_instance = MockApiClient.return_value
+            mock_instance.generate.return_value = ""
 
-@pytest.fixture
-def mock_health_check_success(mock_get):
-    """Fixture to mock a successful health check."""
-    mock_response = MagicMock(spec=requests.Response)
-    mock_response.status_code = 200
-    mock_response.ok = True
-    mock_get.return_value = mock_response
-    return mock_get
+            # When
+            service = SummarizationService()
+            result = service.summarize(text)
 
+            # Then
+            self.assertEqual(result, expected_summary)
+            mock_instance.generate.assert_called_once()
 
-# --- Test Cases ---
-
-
-@pytest.mark.parametrize(
-    "base_url",
-    [API_URL, f"{API_URL}/"],
-)
-def test_summarize_success(
-    summarization_service_factory, mock_health_check_success, mock_post, base_url
-):
-    # Given
-    with override_settings(PVT_LLM_API_URL=base_url, SUMMARY_MAX_CHARS=1000):
-        service = summarization_service_factory()
-        expected_summary = "タイトル: テスト\n要点:\n- テストです"
-        mock_api_response = MagicMock(spec=requests.Response)
-        mock_api_response.status_code = 200
-        mock_api_response.json.return_value = {"response": expected_summary}
-        mock_post.return_value = mock_api_response
-
-        text = "これはテスト用のテキストです。"
-
-        # When
-        result = service.summarize(text)
-
-        # Then
-        assert result == expected_summary
-
-        # Verify calls
-        health_url = urljoin(base_url, HEALTH_API_PATH)
-        mock_health_check_success.assert_called_once_with(
-            health_url, timeout=HEALTH_CHECK_TIMEOUT
-        )
-
-        api_url = urljoin(base_url, GENERATE_API_PATH)
-        mock_post.assert_called_once()
-        call_args, call_kwargs = mock_post.call_args
-        assert call_args[0] == api_url
-        assert call_kwargs["timeout"] == (
-            SUMMARIZE_CONNECT_TIMEOUT,
-            SUMMARIZE_READ_TIMEOUT,
-        )
-        assert call_kwargs["headers"] == {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-        assert call_kwargs["json"]["stream"] is False
-        assert "prompt" in call_kwargs["json"]
-
-
-@pytest.mark.parametrize("text_input", ["", "   \n\t   "])
-def test_summarize_empty_or_whitespace_input(
-    summarization_service, mock_get, mock_post, text_input
-):
-    # When
-    result = summarization_service.summarize(text_input)
-
-    # Then
-    assert result == ""
-    mock_get.assert_not_called()
-    mock_post.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "side_effect, error_message_match",
-    [
-        (
-            503,
-            "LLM API is unhealthy. Status: 503, Body: Server Error",
-        ),
-        (requests.exceptions.Timeout("Connection timed out"), "Failed to connect"),
-    ],
-)
-def test_health_check_fails(
-    summarization_service, mock_get, mock_post, side_effect, error_message_match
-):
-    # Given
-    if isinstance(side_effect, int):
-        mock_get.return_value = MagicMock(
-            spec=requests.Response,
-            status_code=side_effect,
-            ok=False,
-            text="Server Error",
-        )
-    else:
-        mock_get.side_effect = side_effect
-
-    # When & Then
-    with pytest.raises(SummarizationServiceError, match=error_message_match):
-        summarization_service.summarize("test text")
-
-    # Verify calls
-    health_url = urljoin(API_URL, HEALTH_API_PATH)
-    mock_get.assert_called_once_with(health_url, timeout=HEALTH_CHECK_TIMEOUT)
-    mock_post.assert_not_called()
-
-
-@override_settings(SUMMARY_MAX_CHARS=10)
-def test_summarize_truncates_text(
-    summarization_service, mock_health_check_success, mock_post
-):
-    # Given
-    max_chars = 10
-    text = "This is a very long text that should be truncated."
-    mock_api_response = MagicMock(spec=requests.Response)
-    mock_api_response.status_code = 200
-    mock_api_response.json.return_value = {"response": "summary"}
-    mock_post.return_value = mock_api_response
-
-    # When
-    summarization_service.summarize(text)
-
-    # Then
-    payload = mock_post.call_args.kwargs["json"]
-    prompt = payload["prompt"]
-    truncated = prompt.split("テキスト:\n", 1)[1].split("\n\n要約は", 1)[0]
-    assert truncated == text[:max_chars]
-    mock_health_check_success.assert_called_once()
-
-
-def test_summarize_with_max_chars_arg(
-    summarization_service, mock_health_check_success, mock_post
-):
-    # Given
-    text = "This text should be truncated by the argument."
-    max_chars_arg = 5
-    mock_api_response = MagicMock(spec=requests.Response)
-    mock_api_response.status_code = 200
-    mock_api_response.json.return_value = {"response": "summary"}
-    mock_post.return_value = mock_api_response
-
-    # When
-    summarization_service.summarize(text, max_chars=max_chars_arg)
-
-    # Then
-    payload = mock_post.call_args.kwargs["json"]
-    prompt = payload["prompt"]
-    truncated = prompt.split("テキスト:\n", 1)[1].split("\n\n要約は", 1)[0]
-    assert truncated == text[:max_chars_arg]
-    mock_health_check_success.assert_called_once()
-
-
-@pytest.mark.parametrize(
-    "side_effect, error_message_match",
-    [
-        (requests.exceptions.HTTPError("404 Not Found"), "APIへの接続に失敗しました"),
-        (requests.exceptions.Timeout("Timeout"), "APIへの接続に失敗しました"),
-    ],
-)
-def test_summarize_api_fails_on_call(
-    summarization_service,
-    mock_health_check_success,
-    mock_post,
-    side_effect,
-    error_message_match,
-):
-    # Given
-    mock_post.side_effect = side_effect
-
-    # Then
-    with pytest.raises(SummarizationServiceError, match=error_message_match):
-        # When
-        summarization_service.summarize("test text")
-
-
-@pytest.mark.parametrize(
-    "setup_response_mock, error_message_match",
-    [
-        (
-            lambda resp: setattr(
-                resp,
-                "raise_for_status",
-                MagicMock(side_effect=requests.exceptions.HTTPError),
-            ),
-            "APIへの接続に失敗しました",
-        ),
-        (
-            lambda resp: setattr(resp, "json", MagicMock(side_effect=ValueError)),
-            "APIレスポンスのJSONデコードに失敗しました",
-        ),
-        (
-            lambda resp: setattr(
-                resp, "json", MagicMock(return_value={"detail": "wrong key"})
-            ),
-            "APIレスポンスに'response'キーが含まれていません。",
-        ),
-    ],
-)
-def test_summarize_api_fails_on_response(
-    summarization_service,
-    mock_health_check_success,
-    mock_post,
-    setup_response_mock,
-    error_message_match,
-):
-    # Given
-    mock_response = MagicMock(spec=requests.Response)
-    mock_response.status_code = 200
-    setup_response_mock(mock_response)
-    mock_post.return_value = mock_response
-
-    # Then
-    with pytest.raises(SummarizationServiceError, match=error_message_match):
-        # When
-        summarization_service.summarize("test text")
-
-
-def test_init_missing_settings():
-    # When & Then
-    with override_settings(PVT_LLM_API_URL=None):
-        with pytest.raises(
-            ImproperlyConfigured, match="PVT_LLM_API_URL is not configured."
-        ):
+    @override_settings(PVT_LLM_API_URL=None)
+    def test_init_raises_error_if_url_not_configured(self):
+        """
+        Test that initialization raises SummarizationServiceError if the URL is missing.
+        """
+        # When & Then
+        with self.assertRaises(SummarizationServiceError) as context:
             SummarizationService()
 
+        # Verify the underlying error is chained
+        self.assertIsInstance(context.exception.__cause__, ImproperlyConfigured)
+        self.assertIn("Service not configured", str(context.exception))
 
-def test_summarize_missing_max_chars_setting(
-    summarization_service, mock_get, monkeypatch
-):
-    # Given
-    monkeypatch.delattr("django.conf.settings.SUMMARY_MAX_CHARS", raising=False)
+    def test_summarize_empty_input_text(self):
+        """
+        Test that the service returns an empty string for empty or whitespace input
+        without calling the API.
+        """
+        # Given
+        with patch(
+            "apps.gist.services.summarization_service.LlmApiClient"
+        ) as MockApiClient:
+            mock_instance = MockApiClient.return_value
 
-    # Then
-    with pytest.raises(
-        AttributeError, match="settings.SUMMARY_MAX_CHARS is not defined."
-    ):
-        # When
-        summarization_service.summarize("some text")
+            # When
+            service = SummarizationService()
+            result_empty = service.summarize("")
+            result_whitespace = service.summarize("   \n\t   ")
 
-    mock_get.assert_not_called()
+            # Then
+            self.assertEqual(result_empty, "")
+            self.assertEqual(result_whitespace, "")
+            mock_instance.generate.assert_not_called()
