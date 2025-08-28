@@ -22,6 +22,11 @@ services:
   nginx:
     build:
       context: ./nginx
+    env_file:
+      - .env
+    environment:
+      - HOST_BIND_IP=${HOST_BIND_IP:-127.0.0.1}
+      - HOST_PORT=${HOST_PORT:-8000}
     ports:
       - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-8000}:80"
     depends_on:
