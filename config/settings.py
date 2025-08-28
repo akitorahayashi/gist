@@ -26,7 +26,7 @@ if env_path.is_file():
     load_dotenv(dotenv_path=env_path)
 
 # 環境変数からすべてのカスタム設定を読み込む
-PVT_LLM_API_URL = os.getenv("PVT_LLM_API_URL", "").strip() or None
+LLM_API_ENDPOINT = os.getenv("LLM_API_ENDPOINT", "").strip() or None
 SUMMARIZATION_MODEL = os.getenv("SUMMARIZATION_MODEL", "gemma:2b").strip()
 _summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "600")
 
@@ -35,17 +35,17 @@ _summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "600")
 if not SUMMARIZATION_MODEL:
     raise ImproperlyConfigured("SUMMARIZATION_MODEL cannot be empty.")
 
-if PVT_LLM_API_URL:
-    _parsed_url = urlparse(PVT_LLM_API_URL)
+if LLM_API_ENDPOINT:
+    _parsed_url = urlparse(LLM_API_ENDPOINT)
     if _parsed_url.scheme not in ("http", "https"):
         raise ImproperlyConfigured(
-            "PVT_LLM_API_URL must start with http:// or https://."
+            "LLM_API_ENDPOINT must start with http:// or https://."
         )
     if not _parsed_url.netloc:
         raise ImproperlyConfigured(
-            "PVT_LLM_API_URL must include a hostname (e.g., http://localhost:8000)."
+            "LLM_API_ENDPOINT must include a hostname (e.g., http://localhost:8000)."
         )
-    PVT_LLM_API_URL = PVT_LLM_API_URL.rstrip("/")
+    LLM_API_ENDPOINT = LLM_API_ENDPOINT.rstrip("/")
 
 try:
     SUMMARY_MAX_CHARS = int(_summary_max_chars_raw)

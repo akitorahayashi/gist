@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
@@ -10,11 +10,10 @@ from apps.gist.services.summarization_service import (
 )
 
 # Define constants for reuse
-TEST_URL = "http://fake-api-url.com"
 TEST_MODEL = "test-model"
 
 
-@override_settings(PVT_LLM_API_URL=TEST_URL, SUMMARIZATION_MODEL=TEST_MODEL)
+@override_settings(SUMMARIZATION_MODEL=TEST_MODEL)
 class TestSummarizationService(TestCase):
     def test_summarize_success(self):
         """
@@ -23,27 +22,23 @@ class TestSummarizationService(TestCase):
         # Given
         text = "This is a test text."
         expected_summary = "This is the summary."
+        mock_client = MagicMock()
+        mock_client.generate.return_value = expected_summary
 
-        with patch(
-            "apps.gist.services.summarization_service.LlmApiClient"
-        ) as MockApiClient:
-            # Configure the mock instance
-            mock_instance = MockApiClient.return_value
-            mock_instance.generate.return_value = expected_summary
+        # When
+        service = SummarizationService()
+        service.client = mock_client
+        result = service.summarize(text)
 
-            # When
-            service = SummarizationService()
-            result = service.summarize(text)
-
-            # Then
-            self.assertEqual(result, expected_summary)
-            mock_instance.generate.assert_called_once()
-            # Verify that the prompt contains the original text
-            called_prompt = mock_instance.generate.call_args.kwargs["prompt"]
-            self.assertIn(text, called_prompt)
-            # Verify the correct model is used
-            called_model = mock_instance.generate.call_args.kwargs["model"]
-            self.assertEqual(called_model, TEST_MODEL)
+        # Then
+        self.assertEqual(result, expected_summary)
+        mock_client.generate.assert_called_once()
+        # Verify that the prompt contains the original text
+        called_prompt = mock_client.generate.call_args.kwargs["prompt"]
+        self.assertIn(text, called_prompt)
+        # Verify the correct model is used
+        called_model = mock_client.generate.call_args.kwargs["model"]
+        self.assertEqual(called_model, TEST_MODEL)
 
     def test_summarize_api_failure(self):
         """
@@ -51,22 +46,18 @@ class TestSummarizationService(TestCase):
         """
         # Given
         text = "This text will cause an API failure."
+        mock_client = MagicMock()
+        mock_client.generate.side_effect = RequestException("API Error")
 
-        with patch(
-            "apps.gist.services.summarization_service.LlmApiClient"
-        ) as MockApiClient:
-            # Configure the mock to raise an exception
-            mock_instance = MockApiClient.return_value
-            mock_instance.generate.side_effect = RequestException("API Error")
+        # When & Then
+        service = SummarizationService()
+        service.client = mock_client
+        with self.assertRaises(SummarizationServiceError) as context:
+            service.summarize(text)
 
-            # When & Then
-            service = SummarizationService()
-            with self.assertRaises(SummarizationServiceError) as context:
-                service.summarize(text)
-
-            # Verify the error message
-            self.assertIn("要約の生成に失敗しました", str(context.exception))
-            mock_instance.generate.assert_called_once()
+        # Verify the error message
+        self.assertIn("要約の生成に失敗しました", str(context.exception))
+        mock_client.generate.assert_called_once()
 
     def test_summarize_empty_response(self):
         """
@@ -75,23 +66,19 @@ class TestSummarizationService(TestCase):
         # Given
         text = "This text gets an empty summary."
         expected_summary = ""
+        mock_client = MagicMock()
+        mock_client.generate.return_value = ""
 
-        with patch(
-            "apps.gist.services.summarization_service.LlmApiClient"
-        ) as MockApiClient:
-            # Configure the mock to return an empty string
-            mock_instance = MockApiClient.return_value
-            mock_instance.generate.return_value = ""
+        # When
+        service = SummarizationService()
+        service.client = mock_client
+        result = service.summarize(text)
 
-            # When
-            service = SummarizationService()
-            result = service.summarize(text)
+        # Then
+        self.assertEqual(result, expected_summary)
+        mock_client.generate.assert_called_once()
 
-            # Then
-            self.assertEqual(result, expected_summary)
-            mock_instance.generate.assert_called_once()
-
-    @override_settings(PVT_LLM_API_URL=None)
+    @override_settings(LLM_API_ENDPOINT=None)
     def test_init_raises_error_if_url_not_configured(self):
         """
         Test that initialization raises SummarizationServiceError if the URL is missing.
@@ -110,17 +97,15 @@ class TestSummarizationService(TestCase):
         without calling the API.
         """
         # Given
-        with patch(
-            "apps.gist.services.summarization_service.LlmApiClient"
-        ) as MockApiClient:
-            mock_instance = MockApiClient.return_value
+        mock_client = MagicMock()
 
-            # When
-            service = SummarizationService()
-            result_empty = service.summarize("")
-            result_whitespace = service.summarize("   \n\t   ")
+        # When
+        service = SummarizationService()
+        service.client = mock_client
+        result_empty = service.summarize("")
+        result_whitespace = service.summarize("   \n\t   ")
 
-            # Then
-            self.assertEqual(result_empty, "")
-            self.assertEqual(result_whitespace, "")
-            mock_instance.generate.assert_not_called()
+        # Then
+        self.assertEqual(result_empty, "")
+        self.assertEqual(result_whitespace, "")
+        mock_client.generate.assert_not_called()

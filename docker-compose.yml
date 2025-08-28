@@ -5,16 +5,25 @@ services:
       dockerfile: Dockerfile
       target: production
     restart: unless-stopped
+    environment:
+      - GUNICORN_BIND=0.0.0.0:8000
+      - LLM_API_ENDPOINT=${LLM_API_ENDPOINT:-http://host.docker.internal:8080}
+      - SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-qwen3:0.6b}
+      - SUMMARY_MAX_CHARS=${SUMMARY_MAX_CHARS:-600}
+    expose:
+      - "8000"
     volumes:
       - static-volume:/app/static
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
 
   nginx:
     build:
       context: ./nginx
     ports:
-      - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-50080}:80"
+      - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-8000}:80"
     volumes:
       - static-volume:/app/static
     depends_on:
@@ -23,3 +32,4 @@ services:
 
 volumes:
   static-volume:
+    driver: local

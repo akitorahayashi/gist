@@ -70,6 +70,3 @@ USER appuser
 
 # Set the entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
-
-# Default command (can be overridden)
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]

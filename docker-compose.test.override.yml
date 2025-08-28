@@ -1,0 +1,25 @@
+# Test override - for isolated test environment
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/app
+    env_file: [] # Override base env_file to prevent .env loading
+    environment:
+      - LLM_API_ENDPOINT=${LLM_API_ENDPOINT:-http://host.docker.internal:8080}
+      - SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-qwen3:0.6b}
+      - SUMMARY_MAX_CHARS=${SUMMARY_MAX_CHARS:-600}
+      - HOST_BIND_IP=${HOST_BIND_IP:-127.0.0.1}
+      - HOST_PORT=${HOST_PORT:-8001}
+    ports:
+      - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-8001}:8000"
+    command: bash -c 'poetry install --no-root && poetry run python manage.py runserver 0.0.0.0:8000'
+
+volumes:
+  static-volume:
+    driver: local

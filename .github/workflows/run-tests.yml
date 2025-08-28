@@ -4,29 +4,41 @@ on:
   workflow_call:
 
 jobs:
-  run-tests:
+  test:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        test_target: [unit-test, e2e-test]
+        test_target: [unit-test, build-test, e2e-test]
+      fail-fast: false
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: .python-version
+          python-version-file: '.python-version'
 
-      - name: Install and configure Poetry
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Configure Poetry
         run: |
-          pipx install poetry
           poetry config virtualenvs.in-project true
+          poetry config virtualenvs.create true
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: make setup
+        run: poetry install --no-root
 
       - name: Run tests
+        env:
+          # Set environment variables for Docker Compose tests
+          LLM_API_ENDPOINT: ${{ secrets.LLM_API_ENDPOINT || 'http://host.docker.internal:8080' }}
+          SUMMARIZATION_MODEL: ${{ secrets.SUMMARIZATION_MODEL || 'qwen3:0.6b' }}
+          SUMMARY_MAX_CHARS: ${{ secrets.SUMMARY_MAX_CHARS || '600' }}
+          HOST_BIND_IP: ${{ secrets.HOST_BIND_IP || '127.0.0.1' }}
+          HOST_PORT: ${{ secrets.HOST_PORT || '8000' }}
+          SUDO: ${{ secrets.SUDO || 'true' }}
         run: make ${{ matrix.test_target }}

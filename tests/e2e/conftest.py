@@ -5,7 +5,6 @@ from typing import Generator
 
 import httpx
 import pytest
-from dotenv import load_dotenv
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -13,10 +12,10 @@ def e2e_setup() -> Generator[None, None, None]:
     """
     Manages the lifecycle of the application for end-to-end testing.
     """
-    # Load environment variables from .env.test
-    load_dotenv(".env.test")
-    host_port = os.getenv("HOST_PORT", "8000")
-    health_url = f"http://localhost:{host_port}/"
+    # Use environment variables or defaults
+    host_bind_ip = os.getenv("HOST_BIND_IP", "127.0.0.1")
+    host_port = os.getenv("HOST_PORT", "8001")
+    health_url = f"http://{host_bind_ip}:{host_port}/"
 
     # Determine if sudo should be used based on environment variable
     # This allows `SUDO=true make e2e-test` to work as expected.
@@ -29,8 +28,8 @@ def e2e_setup() -> Generator[None, None, None]:
         "compose",
         "-f",
         "docker-compose.yml",
-        "--env-file",
-        ".env.test",
+        "-f",
+        "docker-compose.test.override.yml",
         "--project-name",
         "gist-test",
         "up",

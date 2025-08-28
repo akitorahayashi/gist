@@ -21,4 +21,4 @@ python manage.py migrate
 
 # Start the main process
 echo "Starting Gunicorn server..."
-exec python -m gunicorn config.wsgi:application --bind 0.0.0.0:8000
+exec python -m gunicorn config.wsgi:application --bind "${GUNICORN_BIND:-0.0.0.0:8000}"
