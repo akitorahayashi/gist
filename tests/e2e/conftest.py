@@ -14,8 +14,8 @@ def e2e_setup() -> Generator[None, None, None]:
     """
     # Use environment variables or defaults
     host_bind_ip = os.getenv("HOST_BIND_IP", "127.0.0.1")
-    host_port = os.getenv("HOST_PORT", "8000")
-    health_url = f"http://{host_bind_ip}:{host_port}/"
+    test_port = os.getenv("TEST_PORT", "8002")
+    health_url = f"http://{host_bind_ip}:{test_port}/"
 
     # Determine if sudo should be used based on environment variable
     # This allows `SUDO=true make e2e-test` to work as expected.

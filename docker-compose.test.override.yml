@@ -7,18 +7,11 @@ services:
       target: dev-deps
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    volumes:
-      - .:/app
-      - /app/.venv # Prevent host .venv from being mounted
-    environment:
-      - LLM_API_ENDPOINT=${LLM_API_ENDPOINT:-http://host.docker.internal:8080}
-      - SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-qwen3:0.6b}
-      - SUMMARY_MAX_CHARS=${SUMMARY_MAX_CHARS:-600}
     command: bash -c 'poetry install --no-root && poetry run python manage.py runserver 0.0.0.0:8000'
 
   nginx:
     ports:
-      - "${HOST_BIND_IP:-127.0.0.1}:${HOST_PORT:-8000}:80"
+      - "${HOST_BIND_IP:-127.0.0.1}:${TEST_PORT:-8002}:80"
 
 volumes:
   static-volume:

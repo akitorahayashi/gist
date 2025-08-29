@@ -33,14 +33,7 @@ jobs:
         run: poetry install --no-root
 
       - name: Create .env file for CI
-        run: |
-          cat > .env << EOF
-          LLM_API_ENDPOINT=${{ secrets.LLM_API_ENDPOINT || 'http://host.docker.internal:8080' }}
-          SUMMARIZATION_MODEL=${{ secrets.SUMMARIZATION_MODEL || 'qwen3:0.6b' }}
-          SUMMARY_MAX_CHARS=${{ secrets.SUMMARY_MAX_CHARS || '600' }}
-          HOST_BIND_IP=${{ secrets.HOST_BIND_IP || '127.0.0.1' }}
-          HOST_PORT=${{ secrets.HOST_PORT || '8000' }}
-          EOF
+        run: cp .env.example .env
 
       - name: Run tests
         env:
