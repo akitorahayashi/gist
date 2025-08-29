@@ -27,7 +27,7 @@ if env_path.is_file():
 
 # 環境変数からすべてのカスタム設定を読み込む
 LLM_API_ENDPOINT = os.getenv("LLM_API_ENDPOINT", "").strip() or None
-SUMMARIZATION_MODEL = os.getenv("SUMMARIZATION_MODEL", "gemma:2b").strip()
+SUMMARIZATION_MODEL = os.getenv("SUMMARIZATION_MODEL", "qwen3:0.6b").strip()
 _summary_max_chars_raw = os.getenv("SUMMARY_MAX_CHARS", "600")
 
 

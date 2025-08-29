@@ -38,8 +38,8 @@ Follow these steps to set up and run the development environment.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/your-repository.git
-cd your-repository
+git clone https://github.com/akitorahayashi/gist.git
+cd gist
 ```
 
 ### 2. Initial Project Setup
@@ -124,7 +124,7 @@ The project is configured for Continuous Deployment to the **GitHub Container Re
 When code is pushed to the `main` branch, a GitHub Actions workflow (`.github/workflows/build-and-push.yml`) is triggered. The workflow performs the following steps:
 1.  Logs in to `ghcr.io`.
 2.  Builds a production-ready Docker image based on the `runner` stage in the `Dockerfile`.
-3.  Pushes the image to `ghcr.io/<your-repository>/<image-name>:latest`.
+3.  Pushes the image to `ghcr.io/akitorahayashi/gist:latest`.
 
 This image can then be pulled and deployed to any container hosting platform.
 
