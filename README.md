@@ -1,120 +1,151 @@
 # Gist Summarizer
 
-このプロジェクトは、指定されたウェブページの内容を要約し、問い合わせに応答するDjangoアプリケーションです。
-近代的な開発プラクティスを導入しており、Docker、Makefile, GitHub ActionsによるCI/CDパイプラインが整備されています。
+## Overview
 
-## ✅ 前提条件
+This project is a Django-based web application designed to scrape the content of a given web page and generate a concise summary using a Large Language Model (LLM) API.
 
-開発を始める前に、以下のツールがインストールされていることを確認してください。
+It is built with modern development practices in mind, featuring:
+- **Containerization**: The entire application is containerized using Docker, ensuring a consistent and reproducible environment for both development and production.
+- **Developer Experience (DX)**: A comprehensive `Makefile` is provided to streamline common tasks such as setup, testing, and running the application.
+- **CI/CD**: The repository is configured with GitHub Actions to automatically build and push a production-ready Docker image to the GitHub Container Registry (GHCR) upon pushes to the `main` branch.
 
-- **Docker**: 最新版を推奨
-- **Docker Compose**: Dockerに同梱
-- **Make**: `make` コマンドが利用可能であること
-- **Python**: 3.12 (推奨, `.python-version` ファイル参照)
-- **Poetry**: 1.8.3 (推奨)
+## Tech Stack
 
-## 🚀 はじめに (Getting Started)
+The project utilizes the following key technologies and libraries:
 
-開発を始めるには、まずリポジトリをクローンし、以下のコマンドで **ホストマシンに** Poetryの仮想環境をセットアップし、依存関係をインストールします。
+- **Backend**: Django
+- **Containerization**: Docker, Docker Compose
+- **Web Server / Proxy**: Nginx, Gunicorn
+- **Package Management**: Poetry
+- **Web Scraping**: `requests`, `BeautifulSoup4`
+- **Testing**: Pytest, pytest-django, pytest-mock
+- **Code Quality**: Black (Formatter), Ruff (Linter)
 
-```bash
-make setup
-```
+## Setup and Execution
 
-## 🐳 コンテナのビルドと実行
+Follow these steps to get the development environment up and running.
 
-アプリケーションはDockerコンテナ上で実行されます。以下のコマンドでコンテナをビルドし、バックグラウンドで起動します。
+### Prerequisites
 
-```bash
-make up
-```
+Ensure you have the following tools installed on your host machine:
+- **Make**: A `make` compatible command-line utility.
+- **Docker**: The latest version of Docker Engine.
+- **Docker Compose**: Included with modern Docker installations.
+- **Poetry**: For local dependency management and script execution.
 
-コンテナが起動したら、`http://localhost:8000`でアプリケーションにアクセスできます。
+### Step-by-Step Guide
 
-> **📝 Linuxユーザー向けの注意**
-> 開発環境では、コンテナからホストマシン上のサービス（例：モックサーバー）にアクセスするために `host.docker.internal` を使用します。この設定は `docker-compose.override.yml` 内の `extra_hosts` で自動的に行われます。もし `host.docker.internal` が解決できない古いDockerバージョンを使用している場合は、Dockerを最新版に更新してください。
-
-コンテナを停止・削除するには、以下のコマンドを実行します。
-
-```bash
-make down
-```
-
-### 本番環境を模した実行 (Production-like Execution)
-
-本番環境をシミュレートするためのコマンドが用意されています。これにより、`docker-compose.override.yml` を使用せず、本番に近い設定でコンテナを起動できます。
-
-コンテナをビルドして起動するには、以下のコマンドを実行します。
-
-```bash
-make up-prod
-```
-
-> **⚠️ 重要**
-> `make up-prod` を実行する前に、`.env.example` をコピーして `.env.prod` ファイルを作成し、本番用の環境変数を設定する必要があります。`.env.prod` ファイルは `.gitignore` によりバージョン管理から除外されています。
-
-本番環境用のコンテナを停止・削除するには、以下のコマンドを実行します。
-
-```bash
-make down-prod
-```
-
-## ✅ テストとコード品質
-
-プロジェクトには、コードの品質を維持するためのテスト、リンター、フォーマッターが用意されています。
-
-### テストの実行
-
-ローカルでテストを実行するには、いくつかの方法があります。
-
-1.  **Makeコマンドを使用する方法 (ホストのPoetry環境を利用):**
-    ```bash
-    make test ENV=dev
+1.  **Clone the Repository**:
+    ```sh
+    git clone <repository-url>
+    cd <repository-directory>
     ```
 
-2.  **Dockerコンテナ内で直接実行する方法:**
-    コンテナが起動している(`make up`実行後)ことを確認し、以下のコマンドを実行します。
-    ```bash
-    docker compose exec web poetry run pytest
+2.  **Initial Project Setup**:
+    Run the following command to install local Python dependencies using Poetry and create a `.env` file from the example template.
+    ```sh
+    make setup
+    ```
+    This command populates your local environment but does not affect the Docker containers.
+
+3.  **Start the Application**:
+    Build and start the Docker containers in detached mode using:
+    ```sh
+    make up
+    ```
+    This command uses `docker-compose.yml` and `docker-compose.dev.override.yml` to spin up the `web` (Django) and `nginx` services.
+
+4.  **Access the Application**:
+    Once the containers are running, you can access the web UI at **http://127.0.0.1:8000** (or the address specified by `HOST_BIND_IP` and `HOST_PORT` in your `.env` file).
+
+5.  **Stopping the Application**:
+    To stop and remove the development containers, run:
+    ```sh
+    make down
     ```
 
-### コードのフォーマット
+## Environment Variables
 
-`black`と`ruff`を使ってコードを自動整形します。
-```bash
-make format
-```
+The application is configured via environment variables. Create a `.env` file by copying `.env.example` (`make setup` does this for you) and customize the values as needed.
 
-### リンターとフォーマットのチェック
+| Variable              | Description                                                                                              | Default / Example                             |
+| --------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `LLM_API_ENDPOINT`    | The full URL for the LLM API endpoint. `host.docker.internal` allows the container to reach the host.      | `http://host.docker.internal:8080`            |
+| `SUMMARIZATION_MODEL` | The name of the specific LLM model to use for summarization.                                             | `qwen3:0.6b`                                  |
+| `SUMMARY_MAX_CHARS`   | The maximum number of characters for the generated summary.                                              | `600`                                         |
+| `GUNICORN_BIND`       | The IP and port for Gunicorn to bind to *inside* the `web` container.                                    | `0.0.0.0:8000`                                |
+| `HOST_BIND_IP`        | The IP address on the host machine for Nginx to bind to.                                                 | `127.0.0.1`                                   |
+| `HOST_PORT`           | The port on the host machine to expose the application through Nginx.                                    | `8000`                                        |
+| `DEV_PORT`            | The port used by `docker-compose.dev.override.yml` for development.                                      | `8001`                                        |
+| `TEST_PORT`           | The port used by `docker-compose.test.override.yml` for e2e testing.                                     | `8002`                                        |
 
-CIでも実行されるチェックです。コードに問題がないかを確認します。
-```bash
-make lint-check
-make format-check
-```
 
-## 🛠 Makefileコマンド一覧
+## Application Usage
 
-プロジェクトで利用可能なすべてのコマンドは、`make help`で確認できます。以下は主なコマンドの概要です。
+The application provides a simple web interface.
+1.  Navigate to the main page.
+2.  Enter the URL of a web page you wish to summarize in the input field.
+3.  Click the "Submit" button.
+4.  The application will scrape the content, generate a summary, and display both the original scraped text and the final summary on the page.
 
-| コマンド              | 説明                                                                 |
-| --------------------- | -------------------------------------------------------------------- |
-| `make setup`          | `.env.dev` と `.env.prod` ファイルを `.env.example` から作成します。   |
-| `make up`             | 開発環境のDockerコンテナをビルドして起動します。                     |
-| `make down`           | 開発環境のDockerコンテナを停止・削除します。                         |
-| `make rebuild`        | 開発コンテナをキャッシュなしで再ビルドし、再起動します。             |
-| `make logs`           | 開発コンテナのログを表示します。                                     |
-| `make shell`          | 開発用の`web`コンテナ内でシェルを起動します。                        |
-| `make up-prod`        | 本番環境用のDockerコンテナをビルドして起動します。                   |
-| `make down-prod`      | 本番環境用のDockerコンテナを停止・削除します。                       |
-| `make migrate`        | 開発環境でデータベースのマイグレーションを実行します。               |
-| `make makemigrations` | 新しいマイグレーションファイルを作成します。                         |
-| `make superuser`      | 開発環境でDjangoのスーパーユーザーを作成します。                     |
-| `make migrate-prod`   | 本番環境でデータベースのマイグレーションを実行します。               |
-| `make superuser-prod` | 本番環境でDjangoのスーパーユーザーを作成します。                     |
-| `make test`           | `web`コンテナ内でテストスイートを実行します。                        |
-| `make format`         | `black` と `ruff` を使ってコードをフォーマットします。               |
-| `make lint`           | `ruff` を使ってコードをリントします。                                |
-| `make lint-check`     | `ruff` でリントエラーがないかチェックします。                        |
-| `make clean`          | すべてのコンテナを停止し、生成されたファイルをクリーンアップします。 |
-| `make help`           | 利用可能なすべてのコマンドのリストと説明を表示します。               |
+## Development Workflow
+
+This project includes several tools to maintain code quality and verify functionality.
+
+### Formatting and Linting
+
+- **To automatically format your code**: Run `make format`. This executes Black and Ruff in fix-mode.
+- **To check for linting and format issues**: Run `make lint`. This is the same check that runs in the CI pipeline.
+
+### Running Tests
+
+The project has a full test suite that includes unit, build, and end-to-end tests.
+- **To run all tests**:
+  ```sh
+  make test
+  ```
+- **To run only unit tests** (fast, no Docker required):
+  ```sh
+  make unit-test
+  ```
+- **To run only end-to-end tests** (requires Docker):
+  ```sh
+  make e2e-test
+  ```
+
+## Deployment
+
+Deployment is automated via a GitHub Actions workflow defined in `.github/workflows/build-and-push.yml`.
+
+- **Trigger**: The workflow runs automatically on every `push` to the `main` branch.
+- **Process**:
+    1. The action checks out the repository code.
+    2. It logs into the GitHub Container Registry (GHCR).
+    3. It builds the `production` stage of the `Dockerfile`.
+    4. It pushes the final image to GHCR, tagging it as `ghcr.io/<GITHUB_USERNAME>/<REPOSITORY_NAME>:latest`.
+
+This process ensures that the latest version of the application is always available as a container image for deployment.
+
+## Makefile Commands
+
+The `Makefile` provides a convenient interface for most development tasks. Run `make help` to see all available commands. The table below lists the most common ones.
+
+| Command             | Description                                                                 |
+| ------------------- | --------------------------------------------------------------------------- |
+| `make help`         | Displays a help message with all available targets.                         |
+| `make setup`        | Installs local dependencies with Poetry and creates a `.env` file.          |
+| `make up`           | Starts the development containers in detached mode.                         |
+| `make down`         | Stops and removes the development containers.                               |
+| `make up-prod`      | Starts containers in a production-like mode (no dev overrides).             |
+| `make down-prod`    | Stops and removes the production-like containers.                           |
+| `make rebuild`      | Rebuilds the `web` service without using cache and restarts it.             |
+| `make logs`         | Tails the logs of the running `web` service.                                |
+| `make shell`        | Opens a bash shell inside the `web` container.                              |
+| `make makemigrations`| Creates new Django database migration files.                                |
+| `make migrate`      | Applies database migrations in the development environment.                 |
+| `make superuser`    | Creates a Django superuser for the development environment.                 |
+| `make format`       | Formats all code using Black and Ruff.                                      |
+| `make lint`         | Checks code for formatting and linting errors.                              |
+| `make test`         | Runs the complete test suite (unit, build, and e2e).                        |
+| `make unit-test`    | Runs only the unit tests.                                                   |
+| `make e2e-test`     | Runs only the end-to-end tests.                                             |
