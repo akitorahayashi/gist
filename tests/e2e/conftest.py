@@ -1,10 +1,22 @@
 import os
 import subprocess
 import time
+from pathlib import Path
 from typing import Generator
 
 import httpx
 import pytest
+
+
+def load_env_file(env_path: Path) -> None:
+    """Load environment variables from .env file."""
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ.setdefault(key, value)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -12,6 +24,10 @@ def e2e_setup() -> Generator[None, None, None]:
     """
     Manages the lifecycle of the application for end-to-end testing.
     """
+    # Load .env file if it exists
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    load_env_file(env_path)
+    
     # Use environment variables or defaults
     host_bind_ip = os.getenv("HOST_BIND_IP", "127.0.0.1")
     test_port = os.getenv("TEST_PORT", "8002")

@@ -35,6 +35,11 @@ RUN --mount=type=cache,target=/tmp/poetry_cache \
     poetry config virtualenvs.in-project true && \
     poetry install --no-root
 
+# Copy application files for testing
+COPY manage.py .
+COPY apps/ ./apps/
+COPY config/ ./config/
+
 
 # ==============================================================================
 # Stage 2: Prod-Deps

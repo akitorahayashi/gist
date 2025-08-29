@@ -9,8 +9,6 @@ services:
       - .env
     expose:
       - "8000"
-    volumes:
-      - static-volume:/app/static
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
