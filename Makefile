@@ -31,9 +31,6 @@ DEV_PROJECT_NAME := $(PROJECT_NAME)-dev
 PROD_PROJECT_NAME := $(PROJECT_NAME)-prod
 TEST_PROJECT_NAME := $(PROJECT_NAME)-test
 
-# Define VENV_PATH to ensure we use the correct python/pytest executable.
-VENV_PATH := $(shell poetry env info --path)
-
 # ==============================================================================
 # Help
 # ==============================================================================

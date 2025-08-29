@@ -14,8 +14,8 @@ def load_env_file(env_path: Path) -> None:
         with open(env_path) as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     os.environ.setdefault(key, value)
 
 
@@ -27,7 +27,7 @@ def e2e_setup() -> Generator[None, None, None]:
     # Load .env file if it exists
     env_path = Path(__file__).parent.parent.parent / ".env"
     load_env_file(env_path)
-    
+
     # Use environment variables or defaults
     host_bind_ip = os.getenv("HOST_BIND_IP", "127.0.0.1")
     test_port = os.getenv("TEST_PORT", "8002")
