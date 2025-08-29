@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.7-labs
 # ==============================================================================
-# Stage 1: Builder
+# Stage 1: Dev-Deps
 # - Installs ALL dependencies (including development) to create a cached layer
 #   that can be leveraged by CI/CD for linting, testing, etc.
 # ==============================================================================
-FROM python:3.12-slim as builder
+FROM python:3.12-slim as dev-deps
 
 # Argument for pinning the Poetry version
 ARG POETRY_VERSION=2.1.4
@@ -37,10 +37,10 @@ RUN --mount=type=cache,target=/tmp/poetry_cache \
 
 
 # ==============================================================================
-# Stage 2: Prod-Builder
+# Stage 2: Prod-Deps
 # - Creates a lean virtual environment with only production dependencies.
 # ==============================================================================
-FROM python:3.12-slim as prod-builder
+FROM python:3.12-slim as prod-deps
 
 # Argument for pinning the Poetry version
 ARG POETRY_VERSION=2.1.4
@@ -70,11 +70,11 @@ RUN --mount=type=cache,target=/tmp/poetry_cache \
 
 
 # ==============================================================================
-# Stage 3: Runner
+# Stage 3: Production
 # - Creates the final, lightweight production image.
 # - Copies the lean venv and only necessary application files.
 # ==============================================================================
-FROM python:3.12-slim AS runner
+FROM python:3.12-slim AS production
 
 
 # Create a non-root user and group for security
@@ -86,8 +86,8 @@ WORKDIR /app
 # Grant ownership of the working directory to the non-root user
 RUN chown appuser:appgroup /app
 
-# Copy the lean virtual environment from the prod-builder stage
-COPY --from=prod-builder /app/.venv ./.venv
+# Copy the lean virtual environment from the prod-deps stage
+COPY --from=prod-deps /app/.venv ./.venv
 
 # Set the PATH to include the venv's bin directory for simpler command execution
 ENV PATH="/app/.venv/bin:${PATH}"
