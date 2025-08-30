@@ -33,7 +33,7 @@ Adhere strictly to a **View-Service-Client** layered architecture to ensure sepa
     -   `LlmApiClient`: The single point of contact for the external LLM API. It handles request formatting, authentication (if any), and network error handling.
     -   **Rule:** Clients should be specific to a single external service.
 -   **Templates (`templates/`):**
-    -   **Responsibility:** Contain only presentation logic for the UI.
+    -   **Responsibility:** Contains only presentation logic for the UI.
 
 ## 4. Coding Standards and Style Guide
 

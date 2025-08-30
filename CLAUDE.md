@@ -24,7 +24,7 @@ This project follows a standard Django structure with a clear separation of conc
 - **Configuration:** Project-level settings and URL configurations are located in the `config/` directory.
 - **Applications:** The primary application logic resides in `apps/gist/`. For a detailed breakdown of this application's internal architecture, component responsibilities, and logic, see **`@apps/gist/CLAUDE.md`**.
 - **High-Level Structure:**
-    ```
+    ```text
     .
     ├── apps/gist/      # Core Django application logic
     ├── config/         # Django project configuration
